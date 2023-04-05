@@ -29,8 +29,9 @@ function parse_command(command) {
     if (sc[0] == "fd" || sc[0] == "forward") {
         args = ["NUMBER"]
         cmd = "fd"
-    } else if (sc[0] == "back") {
+    } else if (sc[0] == "bk" || sc[0] == "back") {
         args = ["NUMBER"]
+        cmg = "bk"
     } else if (sc[0] == "rt" || sc[0] == "right") {
         args = ["NUMBER"]
         cmd = "rt"
@@ -82,7 +83,7 @@ function run_command() {
         if (spaceship["pd"]) {
             make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
         }
-    } else if (c[0] == "back") {
+    } else if (c[0] == "bk") {
         var old_x = spaceship["x"]
         var old_y = spaceship["y"]
         spaceship["x"] -= c[1] * Math.cos(spaceship["rotation"])
