@@ -16,52 +16,71 @@ var WIDTH = 800
 var HEIGHT = 450
 
 // game data
-var spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true}
+var spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
 var drawnlines = []
 var asterN = 2
 var asteroids = []
+var fires = []
 
-function parse_command(command) {
-    var sc = command.split(" ")
+function parse_command(sc) {
+    if (sc.length == 0) { return [] }
     var args = []
-    var cmd = sc[0]
+    var cmd = sc.shift()
 
-    if (sc[0] == "fd" || sc[0] == "forward") {
+    if (cmd == "fd" || cmd == "forward") {
         args = ["NUMBER"]
         cmd = "fd"
-    } else if (sc[0] == "bk" || sc[0] == "back") {
+    } else if (cmd == "bk" || cmd == "back" || cmd == "backward") {
         args = ["NUMBER"]
         cmg = "bk"
-    } else if (sc[0] == "rt" || sc[0] == "right") {
+    } else if (cmd == "rt" || cmd == "right") {
         args = ["NUMBER"]
         cmd = "rt"
-    } else if (sc[0] == "lt" || sc[0] == "left") {
+    } else if (cmd == "lt" || cmd == "left") {
         args = ["NUMBER"]
         cmd = "lt"
-    } else if (sc[0] == "pu" || sc[0] == "penup") {
+    } else if (cmd == "pu" || cmd == "penup") {
         args = []
         cmd = "pu"
-    } else if (sc[0] == "pd" || sc[0] == "pendown") {
+    } else if (cmd == "pd" || cmd == "pendown") {
         args = []
         cmd = "pd"
+    } else if (cmd == "st" || cmd == "showturtle") {
+        args = []
+        cmd = "st"
+    } else if (cmd == "ht" || cmd == "hideturtle") {
+        args = []
+        cmd = "ht"
+    } else if (cmd == "cs" || cmd == "clearscreen") {
+        args = []
+        cmd = "cs"
+    } else if (cmd == "reset") {
+        args = []
+        cmd = "reset"
+    } else if (cmd == "help") {
+        args = []
+        cmd = "help"
+    } else if (cmd == "fire") {
+        args = []
+        cmd = "fire"
     } else {
-        return ["ERROR", "UNKNOWN COMMAND: `" + sc[0] + "`"]
+        return [["ERROR", "UNKNOWN COMMAND: `" + cmd + "`"]]
     }
 
-    if (args.length != sc.length - 1) {
-        return ["ERROR", "WRONG NUMBER OF INPUTS FOR COMMAND `" + sc[0] + "`"]
+    if (args.length > sc.length) {
+        return [["ERROR", "WRONG NUMBER OF INPUTS FOR COMMAND `" + cmd + "`"]]
     }
     var c = [cmd]
     for (var i = 0; i < args.length; i++) {
-        value = sc[i+1]
+        value = sc.shift()
         if (args[i] == "NUMBER"){
             if(isNaN(value)){
-                return ["ERROR", "COULD NOT PARSE NUMBER `" + value + "`"]
+                return [["ERROR", "COULD NOT PARSE NUMBER `" + value + "`"]]
             }
             c.push(value / 1)
         }
     }
-    return c
+    return [c].concat(parse_command(sc))
 }
 
 function run_command() {
@@ -72,37 +91,84 @@ function run_command() {
     }
     var command = inputbox.value
     infobox.innerHTML += command
-    var c = parse_command(command.toLowerCase())
-    if (c[0] == "ERROR") {
-        infobox.innerHTML += "\n  " + c[1]
-    } else if (c[0] == "fd") {
-        var old_x = spaceship["x"]
-        var old_y = spaceship["y"]
-        spaceship["x"] += c[1] * Math.cos(spaceship["rotation"])
-        spaceship["y"] += c[1] * Math.sin(spaceship["rotation"])
-        if (spaceship["pd"]) {
-            make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+    var cmds = parse_command(command.toLowerCase().split(" "))
+    var error = false
+    var distance = 0
+    var firecount = 0
+    for (var i = 0; i < cmds.length; i++) {
+        c = cmds[i]
+        if (c[0] == "ERROR") {
+            infobox.innerHTML += "\n  " + c[1]
+            error = true
         }
-    } else if (c[0] == "bk") {
-        var old_x = spaceship["x"]
-        var old_y = spaceship["y"]
-        spaceship["x"] -= c[1] * Math.cos(spaceship["rotation"])
-        spaceship["y"] -= c[1] * Math.sin(spaceship["rotation"])
-        if (spaceship["pd"]) {
-            make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+        if (c[0] == "fd" || c[0] == "bk") {
+            distance += Math.abs(c[1])
         }
-    } else if (c[0] == "rt") {
-        spaceship["rotation"] += c[1] * Math.PI / 180
-    } else if (c[0] == "lt") {
-        spaceship["rotation"] -= c[1] * Math.PI / 180
-    } else if (c[0] == "pu") {
-        spaceship["pd"] = false
-    } else if (c[0] == "pd") {
-        spaceship["pd"] = true
-    } else {
-        infobox.innerHTML += "\n  CURRENTLY UNSUPPORTED COMMAND `" + c[0] + "`"
+        if (c[0] == "fire") {
+            firecount++
+        }
+    }
+    if (distance > 1000) {
+        error = true
+        infobox.innerHTML += "\n  CANNOT TRAVEL MORE THAN 1000 UNITS IN ONE COMMAND"
+    }
+    if (firecount > 10) {
+        error = true
+        infobox.innerHTML += "\n  CANNOT FIRE MORE THAN 10 TIMES IN ONE COMMAND"
+    }
+    if (!error) {
+        while (cmds.length > 0) {
+            c = cmds.shift()
+            if (c[0] == "fd") {
+                var old_x = spaceship["x"]
+                var old_y = spaceship["y"]
+                spaceship["x"] += c[1] * Math.cos(spaceship["rotation"])
+                spaceship["y"] += c[1] * Math.sin(spaceship["rotation"])
+                if (spaceship["pd"]) {
+                    make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+                }
+                spaceship_wrap()
+            } else if (c[0] == "bk") {
+                var old_x = spaceship["x"]
+                var old_y = spaceship["y"]
+                spaceship["x"] -= c[1] * Math.cos(spaceship["rotation"])
+                spaceship["y"] -= c[1] * Math.sin(spaceship["rotation"])
+                if (spaceship["pd"]) {
+                    make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+                }
+                spaceship_wrap()
+            } else if (c[0] == "rt") {
+                spaceship["rotation"] += c[1] * Math.PI / 180
+            } else if (c[0] == "lt") {
+                spaceship["rotation"] -= c[1] * Math.PI / 180
+            } else if (c[0] == "pu") {
+                spaceship["pd"] = false
+            } else if (c[0] == "pd") {
+                spaceship["pd"] = true
+            } else if (c[0] == "ht") {
+                spaceship["st"] = false
+            } else if (c[0] == "st") {
+                spaceship["st"] = true
+            } else if (c[0] == "cs") {
+                drawnlines = []
+            } else if (c[0] == "reset") {
+                drawnlines = []
+                spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
+            } else if (c[0] == "help") {
+                show_logohelp()
+            } else if (c[0] == "fire") {
+                fires.push({"age": 40,"x": spaceship["x"]+15*Math.cos(spaceship["rotation"]),"y": spaceship["y"]+15*Math.sin(spaceship["rotation"]),"rotation": spaceship["rotation"]})
+            } else {
+                infobox.innerHTML += "\n  CURRENTLY UNSUPPORTED COMMAND `" + c[0] + "`"
+            }
+        }
     }
 
+    infobox.scrollTop = infobox.scrollHeight
+    inputbox.value = ""
+}
+
+function spaceship_wrap() {
     while (spaceship["x"] > WIDTH) {
         spaceship["x"] -= WIDTH
     }
@@ -121,9 +187,6 @@ function run_command() {
     while (spaceship["rotation"] < 0) {
         spaceship["rotation"] += 2*Math.PI
     }
-
-    infobox.scrollTop = infobox.scrollHeight
-    inputbox.value = ""
 }
 
 function make_line(start, end) {
@@ -187,16 +250,18 @@ function draw_game() {
     ctx.strokeStyle = "#FFFFFF"
     ctx.lineWidth = 2;
     ctx.beginPath()
-    add_lines(ctx, [
-        [spaceship["x"], spaceship["y"]],
-        [spaceship["x"]+10*Math.cos(3*Math.PI/4+spaceship["rotation"]),
-         spaceship["y"]+10*Math.sin(3*Math.PI/4+spaceship["rotation"])],
-        [spaceship["x"]+15*Math.cos(spaceship["rotation"]),
-         spaceship["y"]+15*Math.sin(spaceship["rotation"])],
-        [spaceship["x"]+10*Math.cos(-3*Math.PI/4+spaceship["rotation"]),
-         spaceship["y"]+10*Math.sin(-3*Math.PI/4+spaceship["rotation"])],
-        [spaceship["x"], spaceship["y"]]
-    ])
+    if (spaceship["st"]) {
+        add_lines(ctx, [
+            [spaceship["x"], spaceship["y"]],
+            [spaceship["x"]+10*Math.cos(3*Math.PI/4+spaceship["rotation"]),
+             spaceship["y"]+10*Math.sin(3*Math.PI/4+spaceship["rotation"])],
+            [spaceship["x"]+15*Math.cos(spaceship["rotation"]),
+             spaceship["y"]+15*Math.sin(spaceship["rotation"])],
+            [spaceship["x"]+10*Math.cos(-3*Math.PI/4+spaceship["rotation"]),
+             spaceship["y"]+10*Math.sin(-3*Math.PI/4+spaceship["rotation"])],
+            [spaceship["x"], spaceship["y"]]
+        ])
+    }
 
     for (var i = 0; i < asteroids.length; i++) {
         var a = asteroids[i]
@@ -208,7 +273,17 @@ function draw_game() {
         }
         add_lines(ctx, pts)
     }
+
     ctx.stroke();
+
+    for (var i = 0; i < fires.length; i++) {
+        var f = fires[i]
+        var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (fires[i]["age"] / 15)))]
+        ctx.beginPath()
+        ctx.strokeStyle = "#" + c + c + c + c + c + c
+        add_lines(ctx, [[f["x"], f["y"]], [f["x"]+10*Math.cos(f["rotation"]), f["y"]+10*Math.sin(f["rotation"])]])
+        ctx.stroke();
+    }
 
 }
 
@@ -223,19 +298,22 @@ function start_game() {
 }
 
 function reset() {
-    spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true}
+    spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
     asteroids = make_new_asteroids(asterN)
     drawnlines = []
+    infobox = document.getElementById("infobox").innerHTML = "Logo Asteroids. Created by Matthew Scroggs (mscroggs.co.uk)"
+    fires = []
 }
 
 function tick() {
     move_asteroids()
+    move_fires()
     update_lines()
     draw_game()
 }
 
 function update_lines() {
-    var new_lines = Array()
+    var new_lines = []
     for (var i = 0; i < drawnlines.length; i++) {
         drawnlines[i][4] -= 1
         if (drawnlines[i][4] > 0){
@@ -246,7 +324,7 @@ function update_lines() {
 }
 
 function make_new_asteroids(n) {
-    var out = Array()
+    var out = []
 
     for (var i = 0; i < n; i++) {
         new_a = {"x": spaceship["x"], "y": spaceship["y"], "size": 4, "sides": 6,
@@ -270,6 +348,20 @@ function move_asteroids() {
         asteroids[i]["direction"] = new_pos["direction"]
     }
 }
+
+function move_fires() {
+    var new_fires = []
+    for (var i = 0; i < fires.length; i++) {
+        fires[i]["age"]--
+        fires[i]["x"] += 2*Math.cos(fires[i]["rotation"])
+        fires[i]["y"] += 2*Math.sin(fires[i]["rotation"])
+        if (fires[i]["age"] > 0) {
+            new_fires.push(fires[i])
+        }
+    }
+    fires = new_fires
+}
+
 function addsteroid(x, y, d, s) {
     var new_x = x + s * Math.cos(d)
     var new_y = y + s * Math.sin(d)
@@ -287,15 +379,17 @@ function addsteroid(x, y, d, s) {
         }
         if (a > 0 && a < 1 && b > 0 && b < 1) {
             if (b < candidate[0]) {
-                candidate = [b, {"x": x + b * (new_x - x), "y": y + b * (new_y - y), "direction": d + Math.PI}]
+                candidate = [b, {"x": x + b * (new_x - x), "y": y + b * (new_y - y),
+                                 "direction": Math.PI + 2 * Math.atan2(line[0] - line[2], line[3] - line[1]) - d}]
             }
         }
     }
     if (candidate[0] < 1) {
-        // TODO: direction here
-        return addsteroid(candidate[1]["x"], candidate[1]["y"], candidate[1]["direction"], s * (1 - candidate[0]))
+        var more = s * (1 - candidate[0])
+        var eps = more / 10
+        return addsteroid(candidate[1]["x"] + eps*Math.cos(candidate[1]["direction"]), candidate[1]["y"] + eps*Math.sin(candidate[1]["direction"]), candidate[1]["direction"], more - eps)
     }
-
+    // TODO: proper wrapping
     while (new_x > WIDTH) {
         new_x -= WIDTH
     }
@@ -315,4 +409,25 @@ function too_close(a, b) {
     var dx = Math.min(Math.abs(a["x"] - b["x"]), Math.abs(a["x"] - b["x"] + WIDTH), Math.abs(a["x"] - b["x"] - WIDTH))
     var dy = Math.min(Math.abs(a["y"] - b["y"]), Math.abs(a["y"] - b["y"] + HEIGHT), Math.abs(a["y"] - b["y"] - HEIGHT))
     return dx * dx + dy * dy < 40000
+}
+
+function show_logohelp() {
+    var join = "; "
+    var info = "<a href='javascript:hide_logohelp()'>Hide help</a><br />"
+    info += "Supported commands: "
+    info += "fd, forward" + join
+    info += "bk, back, backward" + join
+    info += "rt, right" + join
+    info += "lt, left" + join
+    info += "cs, clearscreen" + join
+    info += "pu, penup" + join
+    info += "pd, pendown" + join
+    info += "ht, hideturtle" + join
+    info += "st, showturtle" + join
+    info += "reset" + join
+    info += "fire"
+    document.getElementById("logohelp").innerHTML = info
+}
+function hide_logohelp() {
+    document.getElementById("logohelp").innerHTML = "<a href='javascript:show_logohelp()'>Show help</a><br />"
 }
