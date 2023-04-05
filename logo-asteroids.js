@@ -151,7 +151,7 @@ function make_line(start, end) {
         make_line(start, [x, HEIGHT])
         make_line([x, 0], [end[0], end[1] - HEIGHT])
     } else {
-        drawnlines.push([start[0], start[1], end[0], end[1]])
+        drawnlines.push([start[0], start[1], end[0], end[1], 500])
     }
 }
 
@@ -171,6 +171,17 @@ function draw_game() {
     var ctx = canvas.getContext("2d");
     ctx.fillStyle = "#000000";
     ctx.fillRect(0,0,WIDTH,HEIGHT);
+
+    for (var i = 0; i < drawnlines.length; i++) {
+        var line = drawnlines[i]
+        var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (drawnlines[i][4] / 50)))]
+        ctx.strokeStyle = "#" + c + c + c + c + c + c
+        ctx.lineWidth = 2;
+        ctx.beginPath()
+        ctx.moveTo(line[0], line[1])
+        ctx.lineTo(line[2], line[3])
+        ctx.stroke();
+    }
 
     ctx.strokeStyle = "#FFFFFF"
     ctx.lineWidth = 2;
@@ -198,13 +209,6 @@ function draw_game() {
     }
     ctx.stroke();
 
-    for (var i = 0; i < drawnlines.length; i++) {
-        var line = drawnlines[i]
-        ctx.beginPath()
-        ctx.moveTo(line[0], line[1])
-        ctx.lineTo(line[2], line[3])
-        ctx.stroke();
-    }
 }
 
 function pass() {}
@@ -225,7 +229,19 @@ function reset() {
 
 function tick() {
     move_asteroids()
+    update_lines()
     draw_game()
+}
+
+function update_lines() {
+    var new_lines = Array()
+    for (var i = 0; i < drawnlines.length; i++) {
+        drawnlines[i][4] -= 1
+        if (drawnlines[i][4] > 0){
+            new_lines.push(drawnlines[i])
+        }
+    }
+    drawnlines = new_lines
 }
 
 function make_new_asteroids(n) {
@@ -247,21 +263,51 @@ function make_new_asteroids(n) {
 
 function move_asteroids() {
     for (var i = 0; i < asteroids.length; i++) {
-        asteroids[i]["x"] += asteroids[i]["speed"] * Math.cos(asteroids[i]["direction"])
-        asteroids[i]["y"] += asteroids[i]["speed"] * Math.sin(asteroids[i]["direction"])
-        while (asteroids[i]["x"] > WIDTH) {
-            asteroids[i]["x"] -= WIDTH
+        var new_pos = addsteroid(asteroids[i]["x"], asteroids[i]["y"], asteroids[i]["direction"], asteroids[i]["speed"])
+        asteroids[i]["x"] = new_pos["x"]
+        asteroids[i]["y"] = new_pos["y"]
+        asteroids[i]["direction"] = new_pos["direction"]
+    }
+}
+function addsteroid(x, y, d, s) {
+    var new_x = x + s * Math.cos(d)
+    var new_y = y + s * Math.sin(d)
+    var new_d = d
+
+    var candidate = [2, {}]
+    for (var i = 0; i < drawnlines.length; i++) {
+        var line = drawnlines[i]
+        var b = ((line[0] - x) * (line[3] - line[1]) + (y - line[1]) * (line[2] - line[0])) / ((new_x - x) * (line[3] - line[1]) - (new_y - y) * (line[2] - line[0]))
+        var a = -1
+        if (Math.abs(line[3] - line[1]) > Math.abs(line[2] - line[0])) {
+            a = (y + b * (new_y - y) - line[1]) / (line[3] - line[1])
+        } else {
+            a = (x + b * (new_x - x) - line[0]) / (line[2] - line[0])
         }
-        while (asteroids[i]["x"] < 0) {
-            asteroids[i]["x"] += WIDTH
-        }
-        while (asteroids[i]["y"] > HEIGHT) {
-            asteroids[i]["y"] -= HEIGHT
-        }
-        while (asteroids[i]["y"] < 0) {
-            asteroids[i]["y"] += HEIGHT
+        if (a > 0 && a < 1 && b > 0 && b < 1) {
+            if (b < candidate[0]) {
+                candidate = [b, {"x": x + b * (new_x - x), "y": y + b * (new_y - y), "direction": d + Math.PI}]
+            }
         }
     }
+    if (candidate[0] < 1) {
+        // TODO: direction here
+        return addsteroid(candidate[1]["x"], candidate[1]["y"], candidate[1]["direction"], s * (1 - candidate[0]))
+    }
+
+    while (new_x > WIDTH) {
+        new_x -= WIDTH
+    }
+    while (new_x < 0) {
+        new_x += WIDTH
+    }
+    while (new_y > HEIGHT) {
+        new_y -= HEIGHT
+    }
+    while (new_y < 0) {
+        new_y += HEIGHT
+    }
+    return {"x": new_x, "y": new_y, "direction": new_d}
 }
 
 function too_close(a, b) {
