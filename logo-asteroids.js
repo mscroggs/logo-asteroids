@@ -127,37 +127,13 @@ function run_command() {
 
 function make_line(start, end) {
     if (start[0] < 0) {
-        if (end[0] < 0) {
-            make_line([start[0] + WIDTH, start[1]], [end[0] + WIDTH, end[1]])
-        } else {
-            var y = start[1] - start[0] * (end[1] - start[1]) / (end[0] - start[0])
-            make_line([start[0] + WIDTH, start[1]], [WIDTH, y])
-            make_line([0, y], end)
-        }
+        make_line([start[0] + WIDTH, start[1]], [end[0] + WIDTH, end[1]])
     } else if (start[0] > WIDTH) {
-        if (end[0] > WIDTH) {
-            make_line([start[0] - WIDTH, start[1]], [end[0] - WIDTH, end[1]])
-        } else {
-            var y = start[1] + (WIDTH - start[0]) * (end[1] - start[1]) / (end[0] - start[0])
-            make_line([start[0] - WIDTH, start[1]], [0, y])
-            make_line([WIDTH, y], end)
-        }
+        make_line([start[0] - WIDTH, start[1]], [end[0] - WIDTH, end[1]])
     } else if (start[1] < 0) {
-        if (end[1] < 0) {
-            make_line([start[0], start[1] + HEIGHT], [end[0], end[1] + HEIGHT])
-        } else {
-            var x = start[0] - start[1] * (end[0] - start[0]) / (end[1] - start[1])
-            make_line([start[0], start[1] + HEIGHT], [x, HEIGHT])
-            make_line([x, 0], end)
-        }
+        make_line([start[0], start[1] + HEIGHT], [end[0], end[1] + HEIGHT])
     } else if (start[1] > HEIGHT) {
-        if (end[1] > HEIGHT) {
-            make_line([start[0], start[1] - HEIGHT], [end[0], end[1] - HEIGHT])
-        } else {
-            var x = start[0] + (HEIGHT - start[1]) * (end[0] - start[0]) / (end[1] - start[1])
-            make_line([start[0], start[1] - HEIGHT], [x, 0])
-            make_line([x, HEIGHT], end)
-        }
+        make_line([start[0], start[1] - HEIGHT], [end[0], end[1] - HEIGHT])
     } else if (end[0] < 0) {
         var y = start[1] - start[0] * (end[1] - start[1]) / (end[0] - start[0])
         make_line(start, [0, y])
