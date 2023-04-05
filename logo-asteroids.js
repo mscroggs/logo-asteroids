@@ -80,7 +80,7 @@ function run_command() {
         spaceship["x"] += c[1] * Math.cos(spaceship["rotation"])
         spaceship["y"] += c[1] * Math.sin(spaceship["rotation"])
         if (spaceship["pd"]) {
-            drawnlines.push([old_x, old_y, spaceship["x"], spaceship["y"]])
+            make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
         }
     } else if (c[0] == "back") {
         var old_x = spaceship["x"]
@@ -88,7 +88,7 @@ function run_command() {
         spaceship["x"] -= c[1] * Math.cos(spaceship["rotation"])
         spaceship["y"] -= c[1] * Math.sin(spaceship["rotation"])
         if (spaceship["pd"]) {
-            drawnlines.push([old_x, old_y, spaceship["x"], spaceship["y"]])
+            make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
         }
     } else if (c[0] == "rt") {
         spaceship["rotation"] += c[1] * Math.PI / 180
@@ -125,60 +125,68 @@ function run_command() {
     inputbox.value = ""
 }
 
+function make_line(start, end) {
+    if (start[0] < 0) {
+        if (end[0] < 0) {
+            make_line([start[0] + WIDTH, start[1]], [end[0] + WIDTH, end[1]])
+        } else {
+            var y = start[1] - start[0] * (end[1] - start[1]) / (end[0] - start[0])
+            make_line([start[0] + WIDTH, start[1]], [WIDTH, y])
+            make_line([0, y], end)
+        }
+    } else if (start[0] > WIDTH) {
+        if (end[0] > WIDTH) {
+            make_line([start[0] - WIDTH, start[1]], [end[0] - WIDTH, end[1]])
+        } else {
+            var y = start[1] + (WIDTH - start[0]) * (end[1] - start[1]) / (end[0] - start[0])
+            make_line([start[0] - WIDTH, start[1]], [0, y])
+            make_line([WIDTH, y], end)
+        }
+    } else if (start[1] < 0) {
+        if (end[1] < 0) {
+            make_line([start[0], start[1] + HEIGHT], [end[0], end[1] + HEIGHT])
+        } else {
+            var x = start[0] - start[1] * (end[0] - start[0]) / (end[1] - start[1])
+            make_line([start[0], start[1] + HEIGHT], [x, HEIGHT])
+            make_line([x, 0], end)
+        }
+    } else if (start[1] > HEIGHT) {
+        if (end[1] > HEIGHT) {
+            make_line([start[0], start[1] - HEIGHT], [end[0], end[1] - HEIGHT])
+        } else {
+            var x = start[0] + (HEIGHT - start[1]) * (end[0] - start[0]) / (end[1] - start[1])
+            make_line([start[0], start[1] - HEIGHT], [x, 0])
+            make_line([x, HEIGHT], end)
+        }
+    } else if (end[0] < 0) {
+        var y = start[1] - start[0] * (end[1] - start[1]) / (end[0] - start[0])
+        make_line(start, [0, y])
+        make_line([WIDTH, y], [end[0] + WIDTH, end[1]])
+    } else if (end[0] > WIDTH) {
+        var y = start[1] + (WIDTH - start[0]) * (end[1] - start[1]) / (end[0] - start[0])
+        make_line(start, [WIDTH, y])
+        make_line([0, y], [end[0] - WIDTH, end[1]])
+    } else if (end[1] < 0) {
+        var x = start[0] - start[1] * (end[0] - start[0]) / (end[1] - start[1])
+        make_line(start, [x, 0])
+        make_line([x, HEIGHT], [end[0], end[1] + HEIGHT])
+    } else if (end[1] > HEIGHT) {
+        var x = start[0] + (HEIGHT - start[1]) * (end[0] - start[0]) / (end[1] - start[1])
+        make_line(start, [x, HEIGHT])
+        make_line([x, 0], [end[0], end[1] - HEIGHT])
+    } else {
+        drawnlines.push([start[0], start[1], end[0], end[1]])
+    }
+}
+
 function add_lines(ctx, points) {
-    var prev = points.shift()
-    ctx.moveTo(prev[0], prev[1])
-    while (points.length > 0) {
-        if (points[0][0] < 0) {
-            prev = [0, prev[1] - prev[0] * (points[0][1] - prev[1]) / (points[0][0] - prev[0])]
-            if (prev[1] >= 0 && prev[1] <= HEIGHT) {
-                ctx.lineTo(prev[0], prev[1])
-                prev = [prev[0] + WIDTH, prev[1]]
-                ctx.moveTo(prev[0], prev[1])
-                for (var i = 0; i < points.length; i++) {
-                    points[i][0] += WIDTH
-                }
-                continue
+    for (var x = -1; x <= 1; x++) {
+        for (var y = -1; y <= 1; y++) {
+            ctx.moveTo(x*WIDTH + points[0][0], y*HEIGHT + points[0][1])
+            for (var i = 1; i < points.length; i++) {
+                ctx.lineTo(x*WIDTH + points[i][0], y*HEIGHT + points[i][1])
             }
         }
-        if (points[0][0] > WIDTH) {
-            prev = [WIDTH, prev[1] + (WIDTH - prev[0]) * (points[0][1] - prev[1]) / (points[0][0] - prev[0])]
-            if (prev[1] >= 0 && prev[1] <= HEIGHT) {
-                ctx.lineTo(prev[0], prev[1])
-                prev = [prev[0] - WIDTH, prev[1]]
-                ctx.moveTo(prev[0], prev[1])
-                for (var i = 0; i < points.length; i++) {
-                    points[i][0] -= WIDTH
-                }
-                continue
-            }
-        }
-        if (points[0][1] < 0) {
-            prev = [prev[0] - prev[1] * (points[0][0] - prev[0]) / (points[0][1] - prev[1]), 0]
-            if (prev[0] >= 0 && prev[0] <= WIDTH) {
-                ctx.lineTo(prev[0], prev[1])
-                prev = [prev[0], prev[1] + HEIGHT]
-                ctx.moveTo(prev[0], prev[1])
-                for (var i = 0; i < points.length; i++) {
-                    points[i][1] += HEIGHT
-                }
-                continue
-            }
-        }
-        if (points[0][1] > HEIGHT) {
-            prev = [prev[0] + (HEIGHT - prev[1]) * (points[0][0] - prev[0]) / (points[0][1] - prev[1]), HEIGHT]
-            if (prev[0] >= 0 && prev[0] <= WIDTH) {
-                ctx.lineTo(prev[0], prev[1])
-                prev = [prev[0], prev[1] - HEIGHT]
-                ctx.moveTo(prev[0], prev[1])
-                for (var i = 0; i < points.length; i++) {
-                    points[i][1] -= HEIGHT
-                }
-                continue
-            }
-        }
-        prev = points.shift()
-        ctx.lineTo(prev[0], prev[1])
     }
 }
 
@@ -234,7 +242,7 @@ function start_game() {
 }
 
 function reset() {
-    spaceship = {"x": WIDTH, "y": HEIGHT/2, "rotation": 0, "pd": true}
+    spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true}
     asteroids = make_new_asteroids(asterN)
     drawnlines = []
 }
