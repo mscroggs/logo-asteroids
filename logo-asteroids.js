@@ -20,7 +20,11 @@ var spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": t
 var drawnlines = []
 var asterN = 2
 var asteroids = []
+var explosions = []
 var fires = []
+var score = 0
+var lives = 0
+var running = false
 
 function parse_command(sc) {
     if (sc.length == 0) { return [] }
@@ -32,7 +36,7 @@ function parse_command(sc) {
         cmd = "fd"
     } else if (cmd == "bk" || cmd == "back" || cmd == "backward") {
         args = ["NUMBER"]
-        cmg = "bk"
+        cmd = "bk"
     } else if (cmd == "rt" || cmd == "right") {
         args = ["NUMBER"]
         cmd = "rt"
@@ -63,6 +67,9 @@ function parse_command(sc) {
     } else if (cmd == "fire") {
         args = []
         cmd = "fire"
+    } else if (cmd == "start") {
+        args = []
+        cmd = "start"
     } else {
         return [["ERROR", "UNKNOWN COMMAND: `" + cmd + "`"]]
     }
@@ -116,6 +123,11 @@ function run_command() {
         error = true
         infobox.innerHTML += "\n  CANNOT FIRE MORE THAN 10 TIMES IN ONE COMMAND"
     }
+    if (c[0] == "start" && !running) {
+        start_game()
+    } else if (lives == 0) {
+        infobox.innerHTML += "\n  CANNOT RUN COMMAND WHEN GAME NOT RUNNING. RUN `start` TO BEGIN"
+    }
     if (!error) {
         while (cmds.length > 0) {
             c = cmds.shift()
@@ -158,6 +170,12 @@ function run_command() {
                 show_logohelp()
             } else if (c[0] == "fire") {
                 fires.push({"age": 40,"x": spaceship["x"]+15*Math.cos(spaceship["rotation"]),"y": spaceship["y"]+15*Math.sin(spaceship["rotation"]),"rotation": spaceship["rotation"]})
+            } else if (c[0] == "start") {
+                if (running) {
+                    infobox.innerHTML += "\n  GAME ALREADY RUNNING"
+                } else {
+                    start_game()
+                }
             } else {
                 infobox.innerHTML += "\n  CURRENTLY UNSUPPORTED COMMAND `" + c[0] + "`"
             }
@@ -250,7 +268,7 @@ function draw_game() {
     ctx.strokeStyle = "#FFFFFF"
     ctx.lineWidth = 2;
     ctx.beginPath()
-    if (spaceship["st"]) {
+    if (lives > 0 && spaceship["st"]) {
         add_lines(ctx, [
             [spaceship["x"], spaceship["y"]],
             [spaceship["x"]+10*Math.cos(3*Math.PI/4+spaceship["rotation"]),
@@ -265,7 +283,7 @@ function draw_game() {
 
     for (var i = 0; i < asteroids.length; i++) {
         var a = asteroids[i]
-        var r = (a["sides"] * a["sides"] - a["sides"] + 30) / 6
+        var r = radius(a["sides"])
         var pts = []
         for (var j = 0; j <= a["sides"]; j++) {
             pts.push([a["x"] + r*Math.cos(a["rotation"] + 2*Math.PI * j / a["sides"]),
@@ -278,23 +296,68 @@ function draw_game() {
 
     for (var i = 0; i < fires.length; i++) {
         var f = fires[i]
-        var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (fires[i]["age"] / 15)))]
+        var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (f["age"] / 15)))]
         ctx.beginPath()
         ctx.strokeStyle = "#" + c + c + c + c + c + c
         add_lines(ctx, [[f["x"], f["y"]], [f["x"]+10*Math.cos(f["rotation"]), f["y"]+10*Math.sin(f["rotation"])]])
         ctx.stroke();
     }
 
+    for (var i = 0; i < explosions.length; i++) {
+        var e = explosions[i]
+        var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (e["age"] / 15)))]
+        ctx.beginPath()
+        ctx.strokeStyle = "#" + c + c + c + c + c + c
+        add_lines(ctx, [[e["x"], e["y"]], [e["x"]+5/e["speed"]*Math.cos(e["rotation"]), e["y"]+5/e["speed"]*Math.sin(e["rotation"])]])
+        ctx.stroke();
+    }
+
+    ctx.font = "15px monospace"
+    ctx.fillStyle = "#FFFFFF"
+    ctx.textAlign = "right"
+    ctx.fillText("SCORE: " + score, WIDTH-5, 20)
+    ctx.fillText("LIVES: " + lives, WIDTH-5, 38)
+}
+
+function radius(sides) {
+    return (sides * sides - sides + 30) / 6
 }
 
 function pass() {}
 var interval = setInterval(pass, 10000)
 
 function start_game() {
+    running = true
     reset()
     tick()
     clearInterval(interval)
     interval = setInterval(tick,1000/60);
+}
+
+function gameover() {
+    setTimeout(show_gameover, 1000)
+}
+function show_gameover() {
+    end_game()
+    var canvas = document.getElementById("asteroids");
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(200,200,WIDTH-400,HEIGHT-350);
+
+    ctx.font = "25px monospace"
+    ctx.fillStyle = "#FFFFFF"
+    ctx.textAlign = "center"
+    ctx.fillText("GAME OVER", WIDTH/2, HEIGHT/2)
+    ctx.font = "15px monospace"
+    ctx.fillText("SCORE: " + score, WIDTH/2, HEIGHT/2 + 30)
+    ctx.fillText("RUN COMMAND `start` TO PLAY AGAIN", WIDTH/2, HEIGHT/2 + 60)
+
+}
+
+function end_game() {
+    clearInterval(interval)
+    interval = setInterval(pass, 10000)
+    running = false
 }
 
 function reset() {
@@ -303,11 +366,16 @@ function reset() {
     drawnlines = []
     infobox = document.getElementById("infobox").innerHTML = "Logo Asteroids. Created by Matthew Scroggs (mscroggs.co.uk)"
     fires = []
+    explosions = []
+    score = 0
+    lives = 3
 }
 
 function tick() {
     move_asteroids()
     move_fires()
+    move_explosions()
+    check_collisions()
     update_lines()
     draw_game()
 }
@@ -323,18 +391,101 @@ function update_lines() {
     drawnlines = new_lines
 }
 
+function check_collisions() {
+    var new_asteroids = []
+    var fired = []
+    for (var j = 0; j < fires.length; j++) {
+        fired.push(false)
+    }
+    var ship_points = [
+        [spaceship["x"], spaceship["y"]],
+        [spaceship["x"]+10*Math.cos(3*Math.PI/4+spaceship["rotation"]),
+         spaceship["y"]+10*Math.sin(3*Math.PI/4+spaceship["rotation"])],
+        [spaceship["x"]+15*Math.cos(spaceship["rotation"]),
+         spaceship["y"]+15*Math.sin(spaceship["rotation"])],
+        [spaceship["x"]+10*Math.cos(-3*Math.PI/4+spaceship["rotation"]),
+         spaceship["y"]+10*Math.sin(-3*Math.PI/4+spaceship["rotation"])],
+    ]
+
+    for (var i = 0; i < asteroids.length; i++) {
+        var a = asteroids[i]
+        var hit = false
+        for (var j = 0; j < fires.length; j++) {
+            var f = fires[j]
+            if (Math.pow(f["x"]-a["x"], 2) + Math.pow(f["y"]-a["y"], 2) < Math.pow(radius(a["sides"]), 2)) {
+                hit = true
+                fired[j] = true
+                for (var k = 0; k < 6; k++) {
+                    explosions.push({"x": f["x"], "y": f["y"], "rotation": Math.random()*Math.PI*2, "speed": 0.5 + 2 * Math.random(), "age": 50})
+                }
+                score += 10*(7-a["sides"])
+                if (a["sides"] > 3) {
+                    for (var k = 0; k < 2; k++) {
+                        new_asteroids.push({
+                            "x": a["x"], "y": a["y"], "sides": a["sides"] - 1,
+                            "speed": 0.5+(8-a["sides"])*Math.random()*0.5, "rotation": Math.random()*Math.PI*2,
+                            "direction": Math.random()*Math.PI*2})
+                    }
+                }
+            }
+        }
+        if (lives > 0) {
+            for (var j = 0; j < ship_points.length; j++) {
+                var s = ship_points[j]
+                if (Math.pow(s[0]-a["x"], 2) + Math.pow(s[1]-a["y"], 2) < Math.pow(radius(a["sides"]), 2)) {
+                    lives--;
+                    for (var k = 0; k < 20; k++) {
+                        explosions.push({"x": spaceship["x"], "y": spaceship["y"], "rotation": Math.random()*Math.PI*2, "speed": 0.5 + 2 * Math.random(), "age": 50})
+                    }
+                    if (lives == 0) {
+                        gameover()
+                    } else {
+                        var x = spaceship["x"]
+                        var y = spaceship["y"]
+                        var attempts = 0
+                        while (too_close_any(x, y) && attempts < 50) {
+                            x = 20 + Math.random() * (WIDTH - 40)
+                            y = 20 + Math.random() * (HEIGHT - 40)
+                            attempts++
+                        }
+                        spaceship["x"] = x
+                        spaceship["y"] = y
+                        spaceship["speed"] = 0
+                        spaceship["rotation"] = Math.random() * 2 * Math.PI
+                    }
+                }
+            }
+        }
+        if (!hit) {
+            new_asteroids.push(a)
+        }
+    }
+    asteroids = new_asteroids
+    if (asteroids.length == 0) {
+        asteroids = make_new_asteroids(asterN)
+    }
+    var new_fires = []
+    for (var j = 0; j < fires.length; j++) {
+        if (!fired[j]) {
+            new_fires.push(fires[j])
+        }
+    }
+    fires = new_fires
+}
+
 function make_new_asteroids(n) {
     var out = []
 
     for (var i = 0; i < n; i++) {
-        new_a = {"x": spaceship["x"], "y": spaceship["y"], "size": 4, "sides": 6,
+        new_a = {"x": spaceship["x"], "y": spaceship["y"], "sides": 6,
                  "speed": 0.5+Math.random()*0.5, "rotation": Math.random()*Math.PI*2,
                  "direction": Math.random()*Math.PI*2}
-        while (too_close(new_a, spaceship)) {
+        var attempts = 0
+        while (too_close(new_a, spaceship) && attempts < 50) {
             new_a["x"] = Math.random() * WIDTH
             new_a["y"] = Math.random() * HEIGHT
+            attempts++
         }
-
         out[i] = new_a
     }
     return out
@@ -360,6 +511,19 @@ function move_fires() {
         }
     }
     fires = new_fires
+}
+
+function move_explosions() {
+    var new_explosions = []
+    for (var i = 0; i < explosions.length; i++) {
+        explosions[i]["age"]--
+        explosions[i]["x"] += explosions[i]["speed"]*Math.cos(explosions[i]["rotation"])
+        explosions[i]["y"] += explosions[i]["speed"]*Math.sin(explosions[i]["rotation"])
+        if (explosions[i]["age"] > 0) {
+            new_explosions.push(explosions[i])
+        }
+    }
+    explosions = new_explosions
 }
 
 function addsteroid(x, y, d, s) {
@@ -411,6 +575,15 @@ function too_close(a, b) {
     return dx * dx + dy * dy < 40000
 }
 
+function too_close_any(x, y) {
+    for (var i = 0; i < asteroids.length; i++) {
+        if (too_close(asteroids[i], {"x": x, "y": y})) {
+            return true
+        }
+    }
+    return false
+}
+
 function show_logohelp() {
     var join = "; "
     var info = "<a href='javascript:hide_logohelp()'>Hide help</a><br />"
@@ -425,9 +598,54 @@ function show_logohelp() {
     info += "ht, hideturtle" + join
     info += "st, showturtle" + join
     info += "reset" + join
-    info += "fire"
+    info += "fire" + join
+    info += "start"
     document.getElementById("logohelp").innerHTML = info
 }
+
 function hide_logohelp() {
     document.getElementById("logohelp").innerHTML = "<a href='javascript:show_logohelp()'>Show help</a><br />"
+}
+
+function show_titlescreen() {
+    var canvas = document.getElementById("asteroids");
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0,0,WIDTH,HEIGHT);
+
+    ctx.font = "35px monospace"
+    ctx.fillStyle = "#FFFFFF"
+    ctx.textAlign = "center"
+    ctx.fillText("LOGO ASTEROIDS", WIDTH/2, 100)
+    ctx.font = "15px monospace"
+    ctx.fillText("RUN COMMAND `start` TO BEGIN", WIDTH/2, 130)
+
+    ctx.strokeStyle = "#FFFFFF"
+    ctx.lineWidth = 2;
+    ctx.beginPath()
+    var x = 650
+    var y = 350
+    var rot = -11 * Math.PI/12
+    var scale = 4
+    ctx.moveTo(x, y)
+    ctx.lineTo(x + scale * 10 * Math.cos(rot+5*Math.PI/4), y + scale * 10 * Math.sin(rot+5*Math.PI/4))
+    ctx.lineTo(x + scale * 15 * Math.cos(rot), y + scale * 15 * Math.sin(rot))
+    ctx.lineTo(x + scale * 10 * Math.cos(rot-5*Math.PI/4), y + scale * 10 * Math.sin(rot-5*Math.PI/4))
+    ctx.lineTo(x, y)
+
+    ctx.moveTo(x + scale * 25 * Math.cos(rot), y + scale * 25 * Math.sin(rot))
+    ctx.lineTo(x + scale * 35 * Math.cos(rot), y + scale * 35 * Math.sin(rot))
+    ctx.moveTo(x + scale * 55 * Math.cos(rot), y + scale * 55 * Math.sin(rot))
+    ctx.lineTo(x + scale * 65 * Math.cos(rot), y + scale * 65 * Math.sin(rot))
+
+    x = 250
+    y = 250
+    rot = -Math.PI/3
+    ctx.moveTo(x + scale * 15 * Math.cos(rot), y + scale * 15 * Math.sin(rot))
+    for (var i = 1; i <= 360; i++) {
+        var r = Math.sqrt(Math.pow(scale * 15 * Math.cos(i*Math.PI/180), 2) + Math.pow(scale * 10 * Math.sin(i*Math.PI/180), 2))
+        var a = rot + Math.atan2(10 * Math.sin(i*Math.PI/180), 15 * Math.cos(i*Math.PI/180))
+        ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a))
+    }
+    ctx.stroke();
 }
