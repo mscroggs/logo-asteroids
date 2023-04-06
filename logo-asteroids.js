@@ -98,6 +98,7 @@ function run_command() {
     }
     var command = inputbox.value
     infobox.innerHTML += command
+    inputbox.value = ""
     var cmds = parse_command(command.toLowerCase().split(" "))
     var error = false
     var distance = 0
@@ -125,6 +126,7 @@ function run_command() {
     }
     if (c[0] == "start" && !running) {
         start_game()
+        return
     } else if (lives == 0) {
         infobox.innerHTML += "\n  CANNOT RUN COMMAND WHEN GAME NOT RUNNING. RUN `start` TO BEGIN"
     }
@@ -183,7 +185,6 @@ function run_command() {
     }
 
     infobox.scrollTop = infobox.scrollHeight
-    inputbox.value = ""
 }
 
 function spaceship_wrap() {
@@ -623,7 +624,7 @@ function show_titlescreen() {
     ctx.strokeStyle = "#FFFFFF"
     ctx.lineWidth = 2;
     ctx.beginPath()
-    var x = 650
+    var x = 575
     var y = 350
     var rot = -11 * Math.PI/12
     var scale = 4
@@ -638,14 +639,82 @@ function show_titlescreen() {
     ctx.moveTo(x + scale * 55 * Math.cos(rot), y + scale * 55 * Math.sin(rot))
     ctx.lineTo(x + scale * 65 * Math.cos(rot), y + scale * 65 * Math.sin(rot))
 
-    x = 250
+    x = 225
     y = 250
     rot = -Math.PI/3
-    ctx.moveTo(x + scale * 15 * Math.cos(rot), y + scale * 15 * Math.sin(rot))
+
+    rotated_moveTo(ctx, x, y, scale * 24, 0, rot)
     for (var i = 1; i <= 360; i++) {
-        var r = Math.sqrt(Math.pow(scale * 15 * Math.cos(i*Math.PI/180), 2) + Math.pow(scale * 10 * Math.sin(i*Math.PI/180), 2))
-        var a = rot + Math.atan2(10 * Math.sin(i*Math.PI/180), 15 * Math.cos(i*Math.PI/180))
-        ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a))
+        rotated_lineTo(ctx, x, y, scale * 18 + scale * 6 * Math.cos(i*Math.PI/180), scale * 4 * Math.sin(i*Math.PI/180), rot)
     }
     ctx.stroke();
+
+    ctx.moveTo(x, y)
+    for (var i = 1; i <= 360; i++) {
+        var a = i * Math.PI/180
+        // rotated_lineTo(ctx, x, y, scale * 17 * Math.sin(2*a) * Math.cos(a), scale * 17 * Math.sin(2*a) * Math.sin(a), rot)
+        rotated_lineTo(ctx, x, y, scale * 17 * Math.pow(Math.sin(2*a), 2) * Math.cos(a), scale * 17 * Math.pow(Math.sin(2*a), 2) * Math.sin(a), rot)
+    }
+    ctx.stroke();
+
+    ctx.beginPath()
+    ctx.fillStyle="#000000"
+    rotated_moveTo(ctx, x, y, scale * 15, 0, rot)
+    for (var i = 1; i <= 360; i++) {
+        rotated_lineTo(ctx, x, y, scale * 15 * Math.cos(i*Math.PI/180), scale * 10 * Math.sin(i*Math.PI/180), rot)
+    }
+    ctx.fill();
+
+    ctx.beginPath()
+    rotated_moveTo(ctx, x, y, scale * 15, 0, rot)
+    for (var i = 1; i <= 360; i++) {
+        rotated_lineTo(ctx, x, y, scale * 15 * Math.cos(i*Math.PI/180), scale * 10 * Math.sin(i*Math.PI/180), rot)
+    }
+    rotated_moveTo(ctx, x, y, scale * 7, 0, rot)
+    rotated_lineTo(ctx, x, y, scale * 3, scale * 4, rot)
+    rotated_lineTo(ctx, x, y, -scale * 3, scale * 4, rot)
+    rotated_lineTo(ctx, x, y, -scale * 7, 0, rot)
+    rotated_lineTo(ctx, x, y, -scale * 3, -scale * 4, rot)
+    rotated_lineTo(ctx, x, y, scale * 3, -scale * 4, rot)
+    rotated_lineTo(ctx, x, y, scale * 7, 0, rot)
+
+    rotated_moveTo(ctx, x, y, -scale * 5, scale * 9, rot)
+    rotated_lineTo(ctx, x, y, -scale * 3, scale * 5, rot)
+    rotated_lineTo(ctx, x, y, scale * 3, scale * 5, rot)
+    rotated_lineTo(ctx, x, y, scale * 5, scale * 9, rot)
+
+    rotated_moveTo(ctx, x, y, -scale * 5, -scale * 9, rot)
+    rotated_lineTo(ctx, x, y, -scale * 3, -scale * 5, rot)
+    rotated_lineTo(ctx, x, y, scale * 3, -scale * 5, rot)
+    rotated_lineTo(ctx, x, y, scale * 5, -scale * 9, rot)
+
+    rotated_moveTo(ctx, x, y, -scale * 14.35, scale * 0.71, rot)
+    rotated_lineTo(ctx, x, y, -scale * 7.71, scale * 0.71, rot)
+    rotated_lineTo(ctx, x, y, -scale * 3.71, scale * 4.71, rot)
+    rotated_lineTo(ctx, x, y, -scale * 5.75, scale * 8.79, rot)
+    rotated_moveTo(ctx, x, y, scale * 14.35, scale * 0.71, rot)
+    rotated_lineTo(ctx, x, y, scale * 7.71, scale * 0.71, rot)
+    rotated_lineTo(ctx, x, y, scale * 3.71, scale * 4.71, rot)
+    rotated_lineTo(ctx, x, y, scale * 5.75, scale * 8.79, rot)
+    rotated_moveTo(ctx, x, y, -scale * 14.35, -scale * 0.71, rot)
+    rotated_lineTo(ctx, x, y, -scale * 7.71, -scale * 0.71, rot)
+    rotated_lineTo(ctx, x, y, -scale * 3.71, -scale * 4.71, rot)
+    rotated_lineTo(ctx, x, y, -scale * 5.75, -scale * 8.79, rot)
+    rotated_moveTo(ctx, x, y, scale * 14.35, -scale * 0.71, rot)
+    rotated_lineTo(ctx, x, y, scale * 7.71, -scale * 0.71, rot)
+    rotated_lineTo(ctx, x, y, scale * 3.71, -scale * 4.71, rot)
+    rotated_lineTo(ctx, x, y, scale * 5.75, -scale * 8.79, rot)
+    ctx.stroke();
+}
+
+function rotated_lineTo(ctx, cx, cy, dx, dy, rot) {
+    var r = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2))
+    var a = rot + Math.atan2(dy, dx)
+    ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
+}
+
+function rotated_moveTo(ctx, cx, cy, dx, dy, rot) {
+    var r = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2))
+    var a = rot + Math.atan2(dy, dx)
+    ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
 }
