@@ -639,6 +639,13 @@ function show_titlescreen() {
     ctx.moveTo(x + scale * 55 * Math.cos(rot), y + scale * 55 * Math.sin(rot))
     ctx.lineTo(x + scale * 65 * Math.cos(rot), y + scale * 65 * Math.sin(rot))
 
+    ctx.stroke();
+
+    ctx.beginPath()
+
+    ctx.strokeStyle = "#FFFFFF"
+    ctx.fillStyle="#006600"
+
     x = 225
     y = 250
     rot = -Math.PI/3
@@ -655,21 +662,19 @@ function show_titlescreen() {
         // rotated_lineTo(ctx, x, y, scale * 17 * Math.sin(2*a) * Math.cos(a), scale * 17 * Math.sin(2*a) * Math.sin(a), rot)
         rotated_lineTo(ctx, x, y, scale * 17 * Math.pow(Math.sin(2*a), 2) * Math.cos(a), scale * 17 * Math.pow(Math.sin(2*a), 2) * Math.sin(a), rot)
     }
+    ctx.fill();
     ctx.stroke();
 
     ctx.beginPath()
-    ctx.fillStyle="#000000"
+    ctx.fillStyle="#A4442D"
     rotated_moveTo(ctx, x, y, scale * 15, 0, rot)
     for (var i = 1; i <= 360; i++) {
         rotated_lineTo(ctx, x, y, scale * 15 * Math.cos(i*Math.PI/180), scale * 10 * Math.sin(i*Math.PI/180), rot)
     }
     ctx.fill();
+    ctx.stroke();
 
     ctx.beginPath()
-    rotated_moveTo(ctx, x, y, scale * 15, 0, rot)
-    for (var i = 1; i <= 360; i++) {
-        rotated_lineTo(ctx, x, y, scale * 15 * Math.cos(i*Math.PI/180), scale * 10 * Math.sin(i*Math.PI/180), rot)
-    }
     rotated_moveTo(ctx, x, y, scale * 7, 0, rot)
     rotated_lineTo(ctx, x, y, scale * 3, scale * 4, rot)
     rotated_lineTo(ctx, x, y, -scale * 3, scale * 4, rot)
