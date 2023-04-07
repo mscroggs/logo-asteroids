@@ -723,3 +723,5 @@ function rotated_moveTo(ctx, cx, cy, dx, dy, rot) {
     var a = rot + Math.atan2(dy, dx)
     ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
 }
+
+show_titlescreen()
