@@ -586,21 +586,47 @@ function too_close_any(x, y) {
 }
 
 function show_logohelp() {
-    var join = "; "
+    var commands = [
+        [["fd", "forward"], "move forward", ["fd 100"]],
+        [["bk", "back", "backward"], "move backward", ["bk 100"]],
+        [["rt", "right"], "turn right", ["rt 90"]],
+        [["lt", "left"], "turn left", ["lt 60"]],
+        [["cs", "clearscreen"], "erase all the lines", []],
+        [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", []],
+        [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", []],
+        [["ht", "hideturtle"], "hide the turtle", []],
+        [["st", "showturtle"], "show the turtle", []],
+        [["reset"], "erase all the lines are move back to the centre", []],
+        [["fire"], "fire at the asteroids", []],
+        [["start"], "start the game", []],
+    ]
     var info = "<a href='javascript:hide_logohelp()'>Hide help</a><br />"
-    info += "Supported commands: "
-    info += "fd, forward" + join
-    info += "bk, back, backward" + join
-    info += "rt, right" + join
-    info += "lt, left" + join
-    info += "cs, clearscreen" + join
-    info += "pu, penup" + join
-    info += "pd, pendown" + join
-    info += "ht, hideturtle" + join
-    info += "st, showturtle" + join
-    info += "reset" + join
-    info += "fire" + join
-    info += "start"
+    info += "Supported commands:"
+    info += "<ul>"
+    for (var i = 0; i < commands.length; i++) {
+        info += "<li>"
+        for (var j = 0; j < commands[i][0].length; j++) {
+            info += "<span class='logocmd'>" + commands[i][0][j] + "</span>"
+            if (j + 1 < commands[i][0].length) {
+                info += ", "
+            }
+        }
+        if (commands[i][1] != "") {
+            info += ": " + commands[i][1]
+        }
+        if (commands[i][2].length > 0) {
+            info += " (eg "
+            for (var j = 0; j < commands[i][2].length; j++) {
+                info += "<span class='logocmd'>" + commands[i][2][j] + "</span>"
+                if (j + 1 < commands[i][2].length) {
+                    info += ", "
+                }
+            }
+            info += ")"
+        }
+        info += "</li>"
+    }
+    info += "</ul>"
     document.getElementById("logohelp").innerHTML = info
 }
 
