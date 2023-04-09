@@ -5,7 +5,7 @@
 /**********************************************/
 /*  This code was written by Matthew Scroggs  */
 /*                                            */
-/*               mscroggs.co.uk               */
+/*       mscroggs.co.uk/logo-asteroids        */
 /*     github.com/mscroggs/logo-asteroids     */
 /**********************************************/
 /* This code is licensed under an MIT license */
@@ -25,6 +25,9 @@ var fires = []
 var score = 0
 var lives = 0
 var running = false
+var cmd_history = []
+var history_n = 0
+var history_overwritten = {}
 
 function parse_command(sc) {
     if (sc.length == 0) { return [] }
@@ -97,6 +100,9 @@ function run_command() {
         infobox.innerHTML += "\n"
     }
     var command = inputbox.value
+    cmd_history.push(command)
+    history_n = 0
+    history_overwritten = {}
     infobox.innerHTML += command
     inputbox.value = ""
     var cmds = parse_command(command.toLowerCase().split(" "))
@@ -365,7 +371,6 @@ function reset() {
     spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
     asteroids = make_new_asteroids(asterN)
     drawnlines = []
-    infobox = document.getElementById("infobox").innerHTML = "Logo Asteroids. Created by Matthew Scroggs (mscroggs.co.uk)"
     fires = []
     explosions = []
     score = 0
@@ -463,6 +468,8 @@ function check_collisions() {
     }
     asteroids = new_asteroids
     if (asteroids.length == 0) {
+        asterN++
+        lives++
         asteroids = make_new_asteroids(asterN)
     }
     var new_fires = []
@@ -635,6 +642,7 @@ function hide_logohelp() {
 }
 
 function show_titlescreen() {
+    document.getElementById("infobox").innerHTML = "Logo Asteroids. Created by Matthew Scroggs (mscroggs.co.uk)"
     var canvas = document.getElementById("asteroids");
     var ctx = canvas.getContext("2d");
     ctx.fillStyle = "#000000";
@@ -751,3 +759,30 @@ function rotated_moveTo(ctx, cx, cy, dx, dy, rot) {
 }
 
 show_titlescreen()
+document.getElementById("inputbox").addEventListener("keydown", (event) => {
+    var new_history_n = history_n
+    if(event.key == "ArrowUp") {
+        if (history_n < cmd_history.length) {
+            new_history_n++
+        }
+    }
+    if(event.key == "ArrowDown") {
+        if (history_n > 0) {
+            new_history_n--
+        }
+    }
+    if (history_n != new_history_n) {
+        var current = document.getElementById("inputbox").value
+        if ((history_n == 0 && current != "") || (current != cmd_history[cmd_history.length - history_n])){
+            history_overwritten[history_n] = current
+        }
+        if (new_history_n in history_overwritten) {
+            document.getElementById("inputbox").value = history_overwritten[new_history_n]
+        } else if (new_history_n == 0){
+            document.getElementById("inputbox").value = ""
+        } else {
+            document.getElementById("inputbox").value = cmd_history[cmd_history.length - new_history_n]
+        }
+        history_n = new_history_n
+    }
+});
