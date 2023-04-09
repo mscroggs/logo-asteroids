@@ -28,6 +28,7 @@ var running = false
 var cmd_history = []
 var history_n = 0
 var history_overwritten = {}
+var custom_commands = {}
 
 function parse_command(sc) {
     if (sc.length == 0) { return [] }
@@ -75,8 +76,13 @@ function parse_command(sc) {
         cmd = "start"
     } else if (cmd == "repeat") {
         args = ["INT", "[]"]
-    } else {
-        return [["ERROR", "UNKNOWN COMMAND: `" + cmd + "`"]]
+    } else if (cmd == "to") {
+        args = ["STRING", "?: ... END"]
+    } else if (cmd in custom_commands) {
+        args = []
+        for (var i = 0; i < custom_commands[cmd][0].length; i++) {
+            args.push("NUMBER")
+        }
     }
 
     if (args.length > sc.length) {
@@ -85,7 +91,9 @@ function parse_command(sc) {
     var c = [cmd]
     for (var i = 0; i < args.length; i++) {
         value = sc.shift()
-        if (args[i] == "NUMBER") {
+        if (value[0] == ":" && (args[i] == "NUMBER" || args[i] == "INT")) {
+            c.push(value)
+        } else if (args[i] == "NUMBER") {
             if(isNaN(value)) {
                 return [["ERROR", "COULD NOT PARSE NUMBER `" + value + "`"]]
             }
@@ -98,9 +106,13 @@ function parse_command(sc) {
                 return [["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]]
             }
             c.push(value * 1)
+        } else if (args[i] == "STRING") {
+            if(!value.match()) {
+                return [["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]]
+            }
+            c.push(value)
         } else if (args[i] == "[]") {
             if (value[0] != "["){
-                alert(value)
                 return [["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]]
             }
             var bracketed = value.substr(1)
@@ -113,33 +125,111 @@ function parse_command(sc) {
                 bracketed += " " + sc.shift()
             }
             if ((bracketed.match(/\[/g) || []).length != (bracketed.match(/\]/g) || []).length) {
-                alert(bracketed)
                 return [["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]]
             }
             c.push(parse_command(bracketed.split(" ")))
+        } else if (args[i] == "?: ... END") {
+            inputs = []
+            while (value[0] == ":") {
+                inputs.push(value.substr(1))
+                value = sc.shift()
+            }
+            var body = value
+            while (value != "end" && sc.length > 0) {
+                value = sc.shift()
+                body += " " + value
+            }
+            if (value != "end") {
+                return [["ERROR", "BODY OF SUBROUTINE MUST CONCLUDE WITH `end`"]]
+            }
+            body = body.substr(0, body.length - 4)
+            c.push(inputs)
+            c.push(parse_command(body.split(" ")))
+        } else {
+            return [["ERROR", "PARSING OF INPUT OF TYPE `" + args[i] + "` NOT SUPPORTED"]]
         }
     }
     return [c].concat(parse_command(sc))
 }
 
+function expand_commands(cmds, depth, variables) {
+    if (depth > 50) {
+        return [["ERROR", "MAXIMUM RECURSION DEPTH REACHED"]]
+    }
+    var out = []
+    for (var i = 0; i < cmds.length; i++) {
+        var c = cmds[i]
+        if (c[0] == "repeat") {
+            for (var j = 0; j < c[1]; j++) {
+                out = out.concat(expand_commands(c[2], depth + 1, variables))
+            }
+        } else if (c[0] in custom_commands) {
+            var new_variables = {}
+            for (v in variables) {
+                new_variables[v] = variables[v]
+            }
+            for (var j = 0; j < custom_commands[c[0]][0].length; j++) {
+                new_variables[custom_commands[c[0]][0][j]] = c[j+1]
+            }
+            out = out.concat(expand_commands(custom_commands[c[0]][1], depth + 1, new_variables))
+        } else if (c[0] == "to") {
+            if (is_command(c[1])) {
+                return [["ERROR", "CANNOT OVERWRITE BUILT IN COMMAND `" + c[1] + "`"]]
+            }
+            custom_commands[c[1]] = [c[2], c[3]]
+        } else {
+            var new_c = []
+            for (var j = 0; j < c.length; j++) {
+                if (c[j][0] == ":") {
+                    var v = c[j].substr(1)
+                    if (v in variables) {
+                        new_c.push(variables[v])
+                    } else {
+                        return [["ERROR", "VARIABLE `:" + v + "` HAS NO VALUE"]]
+                    }
+                } else {
+                    new_c.push(c[j])
+                }
+            }
+            out.push(new_c)
+        }
+    }
+    return out
+}
+
 function run_command() {
     var infobox = document.getElementById("infobox")
     var inputbox = document.getElementById("inputbox")
-    if (infobox.innerHTML != "") {
-        infobox.innerHTML += "\n"
-    }
     var command = inputbox.value
+    while (command[0] == " ") {
+        command = command.substr(1)
+    }
+    while (command[command.length - 1] == " ") {
+        command = command.substr(0, command.length - 1)
+    }
+    while (command.includes("  ")) {
+        command = command.replaceAll("  ", " ")
+    }
+    if (command == "") {
+        return
+    }
     cmd_history.push(command)
     history_n = 0
     history_overwritten = {}
+    if (infobox.innerHTML != "") {
+        infobox.innerHTML += "\n"
+    }
     infobox.innerHTML += command
     inputbox.value = ""
     var cmds = parse_command(command.toLowerCase().split(" "))
     var error = false
     var distance = 0
     var firecount = 0
+
+    cmds = expand_commands(cmds, 0, {})
+
     for (var i = 0; i < cmds.length; i++) {
-        c = cmds[i]
+        var c = cmds[i]
         if (c[0] == "ERROR") {
             infobox.innerHTML += "\n  " + c[1]
             error = true
@@ -169,7 +259,7 @@ function run_command() {
         }
     } else if (!error) {
         while (cmds.length > 0) {
-            c = cmds.shift()
+            var c = cmds.shift()
             if (c[0] == "fd") {
                 var old_x = spaceship["x"]
                 var old_y = spaceship["y"]
@@ -210,17 +300,9 @@ function run_command() {
             } else if (c[0] == "fire") {
                 fires.push({"age": 40,"x": spaceship["x"]+15*Math.cos(spaceship["rotation"]),"y": spaceship["y"]+15*Math.sin(spaceship["rotation"]),"rotation": spaceship["rotation"]})
             } else if (c[0] == "start") {
-                if (running) {
-                    infobox.innerHTML += "\n  GAME ALREADY RUNNING"
-                } else {
-                    start_game()
-                }
-            } else if (c[0] == "repeat") {
-                for (var i = 0; i < c[1]; i++) {
-                    cmds = c[2].concat(cmds)
-                }
+                infobox.innerHTML += "\n  GAME ALREADY RUNNING"
             } else {
-                infobox.innerHTML += "\n  CURRENTLY UNSUPPORTED COMMAND `" + c[0] + "`"
+                infobox.innerHTML += "\n  UNKNOWN COMMAND `" + c[0] + "`"
             }
         }
     }
@@ -627,26 +709,39 @@ function too_close_any(x, y) {
     return false
 }
 
-function show_logohelp() {
-    var commands = [
-        // turtle commands
-        [["bk", "back", "backward"], "move backward", ["bk 100"]],
-        [["cs", "clearscreen"], "erase all the lines", []],
-        [["fd", "forward"], "move forward", ["fd 100"]],
-        [["ht", "hideturtle"], "hide the turtle", []],
-        [["lt", "left"], "turn left", ["lt 60"]],
-        [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", []],
-        [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", []],
-        [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"]],
-        [["reset"], "erase all the lines are move back to the centre", []],
-        [["rt", "right"], "turn right", ["rt 90"]],
-        [["st", "showturtle"], "show the turtle", []],
+var commands = [
+    // turtle commands
+    [["bk", "back", "backward"], "move backward", ["bk 100"]],
+    [["cs", "clearscreen"], "erase all the lines", []],
+    [["fd", "forward"], "move forward", ["fd 100"]],
+    [["ht", "hideturtle"], "hide the turtle", []],
+    [["lt", "left"], "turn left", ["lt 60"]],
+    [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", []],
+    [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", []],
+    [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"]],
+    [["reset"], "erase all the lines are move back to the centre", []],
+    [["rt", "right"], "turn right", ["rt 90"]],
+    [["st", "showturtle"], "show the turtle", []],
+    [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"]],
 
-        // special commands
-        [["fire"], "fire at the asteroids", []],
-        [["help"], "show help", []],
-        [["start"], "start the game", []],
-    ]
+    // special commands
+    [["fire"], "fire at the asteroids", []],
+    [["help"], "show help", []],
+    [["start"], "start the game", []],
+]
+
+function is_command(c) {
+    for (var i = 0; i < commands.length; i++) {
+        for (var j = 0; j < commands[i][0]; j++) {
+            if (c == commands[i][0][j]) {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+function show_logohelp() {
     var info = "<a href='javascript:hide_logohelp()'>Hide help</a><br />"
     info += "Supported commands:"
     info += "<ul>"
