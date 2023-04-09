@@ -30,58 +30,47 @@ var history_n = 0
 var history_overwritten = {}
 var custom_commands = {}
 
+var commands = [
+    // FORMAT: [ [command(s)], "description", [example(s)], [arg(s)]]
+
+    // turtle commands
+    [["bk", "back", "backward"], "move backward", ["bk 100"], ["NUMBER"]],
+    [["cs", "clearscreen"], "erase all the lines", [], []],
+    [["fd", "forward"], "move forward", ["fd 100"], ["NUMBER"]],
+    [["ht", "hideturtle"], "hide the turtle", [], []],
+    [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"]],
+    [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], []],
+    [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], []],
+    [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"], ["INT", "[]"]],
+    [["reset"], "erase all the lines are move back to the centre", [], []],
+    [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"]],
+    [["st", "showturtle"], "show the turtle", [], []],
+    [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["?: ... END"]],
+
+    // special commands
+    [["fire"], "fire at the asteroids", [], []],
+    [["help"], "show help", [], []],
+    [["start"], "start the game", [], []],
+]
+
+
 function parse_command(sc) {
     if (sc.length == 0) { return [] }
     var args = []
     var cmd = sc.shift()
 
-    if (cmd == "fd" || cmd == "forward") {
-        args = ["NUMBER"]
-        cmd = "fd"
-    } else if (cmd == "bk" || cmd == "back" || cmd == "backward") {
-        args = ["NUMBER"]
-        cmd = "bk"
-    } else if (cmd == "rt" || cmd == "right") {
-        args = ["NUMBER"]
-        cmd = "rt"
-    } else if (cmd == "lt" || cmd == "left") {
-        args = ["NUMBER"]
-        cmd = "lt"
-    } else if (cmd == "pu" || cmd == "penup") {
-        args = []
-        cmd = "pu"
-    } else if (cmd == "pd" || cmd == "pendown") {
-        args = []
-        cmd = "pd"
-    } else if (cmd == "st" || cmd == "showturtle") {
-        args = []
-        cmd = "st"
-    } else if (cmd == "ht" || cmd == "hideturtle") {
-        args = []
-        cmd = "ht"
-    } else if (cmd == "cs" || cmd == "clearscreen") {
-        args = []
-        cmd = "cs"
-    } else if (cmd == "reset") {
-        args = []
-        cmd = "reset"
-    } else if (cmd == "help") {
-        args = []
-        cmd = "help"
-    } else if (cmd == "fire") {
-        args = []
-        cmd = "fire"
-    } else if (cmd == "start") {
-        args = []
-        cmd = "start"
-    } else if (cmd == "repeat") {
-        args = ["INT", "[]"]
-    } else if (cmd == "to") {
-        args = ["STRING", "?: ... END"]
-    } else if (cmd in custom_commands) {
-        args = []
+    if (cmd in custom_commands) {
         for (var i = 0; i < custom_commands[cmd][0].length; i++) {
             args.push("NUMBER")
+        }
+    } else {
+        for (var i = 0; i < commands.length; i++){
+            for (var j = 0; j < commands[i][0].length; j++) {
+                if (cmd == commands[i][0][j]) {
+                    args = commands[i][3]
+                    cmd = commands[i][0][0]
+                }
+            }
         }
     }
 
@@ -703,7 +692,7 @@ function addsteroid(x, y, d, s) {
         if (edge_y >= 0 && edge_y <= HEIGHT) {
             var more = Math.sqrt(Math.pow(new_x, 2) + Math.pow(new_y-edge_y, 2))
             var eps = more / 100
-            return addsteroid(WIDTH+eps*Math.cos(new_d), edge_y + eps*Math.sin(new_d), new_d, more - eps)
+            return addsteroid(WIDTH + eps*Math.cos(new_d), edge_y + eps*Math.sin(new_d), new_d, more - eps)
         }
     }
     if (new_y > HEIGHT) {
@@ -717,7 +706,7 @@ function addsteroid(x, y, d, s) {
     if (new_y < 0) {
         var edge_x = x - y * (new_x - x) / (new_y - y)
         if (edge_x >= 0 && edge_x <= WIDTH) {
-            var more = Math.sqrt(Math.pow(new_x-edge_x, 2) + Math.pow(new_y-HEIGHT, 2))
+            var more = Math.sqrt(Math.pow(new_x-edge_x, 2) + Math.pow(new_y, 2))
             var eps = more / 100
             return addsteroid(edge_x + eps*Math.cos(new_d), HEIGHT + eps*Math.sin(new_d), new_d, more - eps)
         }
@@ -739,27 +728,6 @@ function too_close_any(x, y) {
     }
     return false
 }
-
-var commands = [
-    // turtle commands
-    [["bk", "back", "backward"], "move backward", ["bk 100"]],
-    [["cs", "clearscreen"], "erase all the lines", []],
-    [["fd", "forward"], "move forward", ["fd 100"]],
-    [["ht", "hideturtle"], "hide the turtle", []],
-    [["lt", "left"], "turn left", ["lt 60"]],
-    [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", []],
-    [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", []],
-    [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"]],
-    [["reset"], "erase all the lines are move back to the centre", []],
-    [["rt", "right"], "turn right", ["rt 90"]],
-    [["st", "showturtle"], "show the turtle", []],
-    [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"]],
-
-    // special commands
-    [["fire"], "fire at the asteroids", []],
-    [["help"], "show help", []],
-    [["start"], "start the game", []],
-]
 
 function is_command(c) {
     for (var i = 0; i < commands.length; i++) {
