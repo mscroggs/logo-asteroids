@@ -73,6 +73,8 @@ function parse_command(sc) {
     } else if (cmd == "start") {
         args = []
         cmd = "start"
+    } else if (cmd == "repeat") {
+        args = ["INT", "[]"]
     } else {
         return [["ERROR", "UNKNOWN COMMAND: `" + cmd + "`"]]
     }
@@ -83,11 +85,38 @@ function parse_command(sc) {
     var c = [cmd]
     for (var i = 0; i < args.length; i++) {
         value = sc.shift()
-        if (args[i] == "NUMBER"){
-            if(isNaN(value)){
+        if (args[i] == "NUMBER") {
+            if(isNaN(value)) {
                 return [["ERROR", "COULD NOT PARSE NUMBER `" + value + "`"]]
             }
             c.push(value / 1)
+        } else if (args[i] == "INT") {
+            if(isNaN(value)) {
+                return [["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]]
+            }
+            if (value * 1 != Math.floor(value*1)) {
+                return [["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]]
+            }
+            c.push(value * 1)
+        } else if (args[i] == "[]") {
+            if (value[0] != "["){
+                alert(value)
+                return [["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]]
+            }
+            var bracketed = value.substr(1)
+            while (sc.length >= 0) {
+                if (bracketed[bracketed.length - 1] == "]" && (bracketed.match(/\[/g) || []).length + 1 == (bracketed.match(/\]/g) || []).length) {
+                    bracketed = bracketed.substr(0, bracketed.length - 1)
+                    break
+                }
+                if (sc.length == 0) {break}
+                bracketed += " " + sc.shift()
+            }
+            if ((bracketed.match(/\[/g) || []).length != (bracketed.match(/\]/g) || []).length) {
+                alert(bracketed)
+                return [["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]]
+            }
+            c.push(parse_command(bracketed.split(" ")))
         }
     }
     return [c].concat(parse_command(sc))
@@ -130,13 +159,15 @@ function run_command() {
         error = true
         infobox.innerHTML += "\n  CANNOT FIRE MORE THAN 10 TIMES IN ONE COMMAND"
     }
-    if (c[0] == "start" && !running) {
-        start_game()
-        return
-    } else if (lives == 0) {
-        infobox.innerHTML += "\n  CANNOT RUN COMMAND WHEN GAME NOT RUNNING. RUN `start` TO BEGIN"
-    }
-    if (!error) {
+    if (!running) {
+        if (c[0] == "start" && !running) {
+            start_game()
+        } else if (c[0] == "help" && !running) {
+            show_logohelp()
+        } else if (lives == 0) {
+            infobox.innerHTML += "\n  CANNOT RUN COMMAND WHEN GAME NOT RUNNING. RUN `start` TO BEGIN"
+        }
+    } else if (!error) {
         while (cmds.length > 0) {
             c = cmds.shift()
             if (c[0] == "fd") {
@@ -183,6 +214,10 @@ function run_command() {
                     infobox.innerHTML += "\n  GAME ALREADY RUNNING"
                 } else {
                     start_game()
+                }
+            } else if (c[0] == "repeat") {
+                for (var i = 0; i < c[1]; i++) {
+                    cmds = c[2].concat(cmds)
                 }
             } else {
                 infobox.innerHTML += "\n  CURRENTLY UNSUPPORTED COMMAND `" + c[0] + "`"
@@ -594,17 +629,22 @@ function too_close_any(x, y) {
 
 function show_logohelp() {
     var commands = [
-        [["fd", "forward"], "move forward", ["fd 100"]],
+        // turtle commands
         [["bk", "back", "backward"], "move backward", ["bk 100"]],
-        [["rt", "right"], "turn right", ["rt 90"]],
-        [["lt", "left"], "turn left", ["lt 60"]],
         [["cs", "clearscreen"], "erase all the lines", []],
-        [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", []],
-        [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", []],
+        [["fd", "forward"], "move forward", ["fd 100"]],
         [["ht", "hideturtle"], "hide the turtle", []],
-        [["st", "showturtle"], "show the turtle", []],
+        [["lt", "left"], "turn left", ["lt 60"]],
+        [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", []],
+        [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", []],
+        [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"]],
         [["reset"], "erase all the lines are move back to the centre", []],
+        [["rt", "right"], "turn right", ["rt 90"]],
+        [["st", "showturtle"], "show the turtle", []],
+
+        // special commands
         [["fire"], "fire at the asteroids", []],
+        [["help"], "show help", []],
         [["start"], "start the game", []],
     ]
     var info = "<a href='javascript:hide_logohelp()'>Hide help</a><br />"
@@ -693,7 +733,6 @@ function show_titlescreen() {
     ctx.moveTo(x, y)
     for (var i = 1; i <= 360; i++) {
         var a = i * Math.PI/180
-        // rotated_lineTo(ctx, x, y, scale * 17 * Math.sin(2*a) * Math.cos(a), scale * 17 * Math.sin(2*a) * Math.sin(a), rot)
         rotated_lineTo(ctx, x, y, scale * 17 * Math.pow(Math.sin(2*a), 2) * Math.cos(a), scale * 17 * Math.pow(Math.sin(2*a), 2) * Math.sin(a), rot)
     }
     ctx.fill();
