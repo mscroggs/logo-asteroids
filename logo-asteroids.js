@@ -652,6 +652,18 @@ function move_explosions() {
 }
 
 function addsteroid(x, y, d, s) {
+    while (x < 0) {
+        x += WIDTH
+    }
+    while (x > WIDTH) {
+        x -= WIDTH
+    }
+    while (y < 0) {
+        y += HEIGHT
+    }
+    while (y > HEIGHT) {
+        y -= HEIGHT
+    }
     var new_x = x + s * Math.cos(d)
     var new_y = y + s * Math.sin(d)
     var new_d = d
@@ -675,21 +687,40 @@ function addsteroid(x, y, d, s) {
     }
     if (candidate[0] < 1) {
         var more = s * (1 - candidate[0])
-        var eps = more / 10
+        var eps = more / 100
         return addsteroid(candidate[1]["x"] + eps*Math.cos(candidate[1]["direction"]), candidate[1]["y"] + eps*Math.sin(candidate[1]["direction"]), candidate[1]["direction"], more - eps)
     }
-    // TODO: proper wrapping
-    while (new_x > WIDTH) {
-        new_x -= WIDTH
+    if (new_x > WIDTH) {
+        var edge_y = y + (WIDTH - x) * (new_y - y) / (new_x - x)
+        if (edge_y >= 0 && edge_y <= HEIGHT) {
+            var more = Math.sqrt(Math.pow(new_x-WIDTH, 2) + Math.pow(new_y-edge_y, 2))
+            var eps = more / 100
+            return addsteroid(eps*Math.cos(new_d), edge_y + eps*Math.sin(new_d), new_d, more - eps)
+        }
     }
-    while (new_x < 0) {
-        new_x += WIDTH
+    if (new_x < 0) {
+        var edge_y = y + - x * (new_y - y) / (new_x - x)
+        if (edge_y >= 0 && edge_y <= HEIGHT) {
+            var more = Math.sqrt(Math.pow(new_x, 2) + Math.pow(new_y-edge_y, 2))
+            var eps = more / 100
+            return addsteroid(WIDTH+eps*Math.cos(new_d), edge_y + eps*Math.sin(new_d), new_d, more - eps)
+        }
     }
-    while (new_y > HEIGHT) {
-        new_y -= HEIGHT
+    if (new_y > HEIGHT) {
+        var edge_x = x + (HEIGHT - y) * (new_x - x) / (new_y - y)
+        if (edge_x >= 0 && edge_x <= WIDTH) {
+            var more = Math.sqrt(Math.pow(new_x-edge_x, 2) + Math.pow(new_y-HEIGHT, 2))
+            var eps = more / 100
+            return addsteroid(edge_x + eps*Math.cos(new_d), eps*Math.sin(new_d), new_d, more - eps)
+        }
     }
-    while (new_y < 0) {
-        new_y += HEIGHT
+    if (new_y < 0) {
+        var edge_x = x - y * (new_x - x) / (new_y - y)
+        if (edge_x >= 0 && edge_x <= WIDTH) {
+            var more = Math.sqrt(Math.pow(new_x-edge_x, 2) + Math.pow(new_y-HEIGHT, 2))
+            var eps = more / 100
+            return addsteroid(edge_x + eps*Math.cos(new_d), HEIGHT + eps*Math.sin(new_d), new_d, more - eps)
+        }
     }
     return {"x": new_x, "y": new_y, "direction": new_d}
 }
