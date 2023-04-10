@@ -42,6 +42,7 @@ var commands = [
     [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], []],
     [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], []],
     [["random"], "pick a random integer", ["fd random 100"], ["INT"]],
+    [["repcount"], "the current iteration number in a repeat loop", ["repeat 4 [fd 10 * repcount rt 90]"], []],
     [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"], ["INT", "[]"]],
     [["reset"], "erase all the lines are move back to the centre", [], []],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"]],
@@ -64,12 +65,18 @@ function parse_arg(cmds, format, variables) {
                 return [rmax]
             }
             out = [format, Math.floor(Math.random() * rmax[1])]
+        } else if (value == "repcount") {
+            if ("!repcount" in variables) {
+                out = [format, variables["!repcount"]]
+            } else {
+                return ["ERROR", "`repcount` MUST BE USED INSIDE A REPEAT LOOP"]
+            }
         } else if (value[0] == ":") {
             var v = value[0].substr(1)
             if (v in variables) {
                 out = [format, variables[v]]
             } else {
-                return [["ERROR", "VARIABLE `:" + v + "` HAS NO VALUE"]]
+                return ["ERROR", "VARIABLE `:" + v + "` HAS NO VALUE"]
             }
         } else if (format == "NUMBER") {
             if(isNaN(value)) {
@@ -89,7 +96,7 @@ function parse_arg(cmds, format, variables) {
             var op = cmds.shift()
             var other = parse_arg(cmds, format, variables)
             if (other[0] == "ERROR") {
-                return [other]
+                return other
             }
             if (op == "+") {
                 return [format, out[1] + other[1]]
@@ -185,11 +192,15 @@ function expand_commands(cmds, depth, variables) {
 
     var out = []
     if (c[0] == "repeat") {
-        var repeated = []
-        for (var j = 0; j < c[1]; j++) {
-            repeated = repeated.concat(c[2])
+        var new_variables = {}
+        for (v in variables) {
+            new_variables[v] = variables[v]
         }
-        out = expand_commands(repeated, depth + 1, variables)
+        for (var j = 0; j < c[1]; j++) {
+            new_variables["!repcount"] = j
+            var repeat_me = [].concat(c[2])
+            out = out.concat(expand_commands(repeat_me, depth + 1, new_variables))
+        }
     } else if (c[0] in custom_commands) {
         var new_variables = {}
         for (v in variables) {
@@ -252,6 +263,12 @@ function run_command() {
         if (c[0] == "ERROR") {
             infobox.innerHTML += "\n  " + c[1]
             error = true
+        }
+        if (c[0] == "random") {
+            infobox.innerHTML += "\n  COMMAND `random` MUST BE USED INSIDE ANOTHER COMMAND"
+        }
+        if (c[0] == "repcount") {
+            infobox.innerHTML += "\n  COMMAND `repcount` MUST BE USED INSIDE ANOTHER COMMAND"
         }
         if (c[0] == "fd" || c[0] == "bk") {
             distance += Math.abs(c[1])
