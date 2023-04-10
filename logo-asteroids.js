@@ -41,6 +41,7 @@ var commands = [
     [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"]],
     [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], []],
     [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], []],
+    [["random"], "pick a random integer", ["fd random 100"], ["INT"]],
     [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"], ["INT", "[]"]],
     [["reset"], "erase all the lines are move back to the centre", [], []],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"]],
@@ -49,10 +50,105 @@ var commands = [
 
     // special commands
     [["fire"], "fire at the asteroids", [], []],
-    [["help"], "show help", [], []],
+    [["help"], "show command help", [], []],
     [["start"], "start the game", [], []],
 ]
 
+function parse_arg(cmds, format, variables) {
+    value = cmds.shift()
+    if (format == "NUMBER" || format == "INT") {
+        var out = ["ERROR", "ERROR PARSING NUMBER"]
+        if (value == "random") {
+            var rmax = parse_arg(cmds, "INT", variables)
+            if (rmax[0] == "ERROR") {
+                return [rmax]
+            }
+            out = [format, Math.floor(Math.random() * rmax[1])]
+        } else if (value[0] == ":") {
+            var v = value[0].substr(1)
+            if (v in variables) {
+                out = [format, variables[v]]
+            } else {
+                return [["ERROR", "VARIABLE `:" + v + "` HAS NO VALUE"]]
+            }
+        } else if (format == "NUMBER") {
+            if(isNaN(value)) {
+                return ["ERROR", "COULD NOT PARSE NUMBER `" + value + "`"]
+            }
+            out =  [format, value / 1]
+        } else { // format == "INT"
+            if(isNaN(value)) {
+                return ["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]
+            }
+            if (value * 1 != Math.floor(value*1)) {
+                return ["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]
+            }
+            out = [format, value * 1]
+        }
+        if (cmds.length > 0 && (cmds[0] == "+" || cmds[0] == "*" || cmds[0] == "/" || cmds[0] == "-")) {
+            var op = cmds.shift()
+            var other = parse_arg(cmds, format, variables)
+            if (other[0] == "ERROR") {
+                return [other]
+            }
+            if (op == "+") {
+                return [format, out[1] + other[1]]
+            }
+            if (op == "-") {
+                return [format, out[1] - other[1]]
+            }
+            if (op == "*") {
+                return [format, out[1] * other[1]]
+            }
+            if (op == "/") {
+                return [format, out[1] / other[1]]
+            }
+        }
+        return out
+    }
+    if (format == "STRING") {
+        value = value.toLowerCase()
+        if(!value.match(/^[a-z0-9_]+$/)) {
+            return ["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]
+        }
+        return [format, value]
+    } else if (format == "[]") {
+        if (value[0] != "["){
+            return ["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]
+        }
+        var bracketed = value.substr(1)
+        while (cmds.length >= 0) {
+            if (bracketed[bracketed.length - 1] == "]" && (bracketed.match(/\[/g) || []).length + 1 == (bracketed.match(/\]/g) || []).length) {
+                bracketed = bracketed.substr(0, bracketed.length - 1)
+                break
+            }
+            if (cmds.length == 0) {break}
+            bracketed += " " + cmds.shift()
+        }
+        if ((bracketed.match(/\[/g) || []).length != (bracketed.match(/\]/g) || []).length) {
+            return ["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]
+        }
+        return [format, bracketed.split(" ")]
+    } else if (format == "?: ... END") {
+        inputs = []
+        while (value[0] == ":") {
+            inputs.push(value.substr(1))
+            value = cmds.shift()
+        }
+        var body = value
+        while (value != "end" && cmds.length > 0) {
+            value = cmds.shift()
+            body += " " + value
+        }
+        if (value != "end") {
+            return ["ERROR", "BODY OF SUBROUTINE MUST CONCLUDE WITH `end`"]
+        }
+        body = body.substr(0, body.length - 4)
+        return [format, [inputs, body.split(" ")]]
+    } else {
+        return ["ERROR", "PARSING OF INPUT OF TYPE `" + format + "` NOT SUPPORTED"]
+    }
+}
 
 function expand_commands(cmds, depth, variables) {
     if (cmds.length == 0) { return [] }
@@ -80,67 +176,12 @@ function expand_commands(cmds, depth, variables) {
     }
     var c = [cmd]
     for (var i = 0; i < args.length; i++) {
-        value = cmds.shift()
-        if (value[0] == ":" && (args[i] == "NUMBER" || args[i] == "INT")) {
-            c.push(value)
-        } else if (args[i] == "NUMBER") {
-            if(isNaN(value)) {
-                return [["ERROR", "COULD NOT PARSE NUMBER `" + value + "`"]]
-            }
-            c.push(value / 1)
-        } else if (args[i] == "INT") {
-            if(isNaN(value)) {
-                return [["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]]
-            }
-            if (value * 1 != Math.floor(value*1)) {
-                return [["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]]
-            }
-            c.push(value * 1)
-        } else if (args[i] == "STRING") {
-            value = value.toLowerCase()
-            if(!value.match(/^[a-z0-9_]+$/)) {
-                return [["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]]
-            }
-            c.push(value)
-        } else if (args[i] == "[]") {
-            if (value[0] != "["){
-                return [["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]]
-            }
-            var bracketed = value.substr(1)
-            while (cmds.length >= 0) {
-                if (bracketed[bracketed.length - 1] == "]" && (bracketed.match(/\[/g) || []).length + 1 == (bracketed.match(/\]/g) || []).length) {
-                    bracketed = bracketed.substr(0, bracketed.length - 1)
-                    break
-                }
-                if (cmds.length == 0) {break}
-                bracketed += " " + cmds.shift()
-            }
-            if ((bracketed.match(/\[/g) || []).length != (bracketed.match(/\]/g) || []).length) {
-                return [["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]]
-            }
-            c.push(bracketed.split(" "))
-        } else if (args[i] == "?: ... END") {
-            inputs = []
-            while (value[0] == ":") {
-                inputs.push(value.substr(1))
-                value = cmds.shift()
-            }
-            var body = value
-            while (value != "end" && cmds.length > 0) {
-                value = cmds.shift()
-                body += " " + value
-            }
-            if (value != "end") {
-                return [["ERROR", "BODY OF SUBROUTINE MUST CONCLUDE WITH `end`"]]
-            }
-            body = body.substr(0, body.length - 4)
-            c.push(inputs)
-            c.push(body.split(" "))
-        } else {
-            return [["ERROR", "PARSING OF INPUT OF TYPE `" + args[i] + "` NOT SUPPORTED"]]
+        arg = parse_arg(cmds, args[i], variables)
+        if (arg[0] == "ERROR") {
+            return [arg]
         }
+        c.push(arg[1])
     }
-
 
     var out = []
     if (c[0] == "repeat") {
@@ -166,22 +207,9 @@ function expand_commands(cmds, depth, variables) {
         if (is_command(c[1])) {
             return [["ERROR", "CANNOT OVERWRITE BUILT IN COMMAND `" + c[1] + "`"]]
         }
-        custom_commands[c[1]] = [c[2], c[3]]
+        custom_commands[c[1]] = c[2]
     } else {
-        var new_c = []
-        for (var j = 0; j < c.length; j++) {
-            if (c[j][0] == ":") {
-                var v = c[j].substr(1)
-                if (v in variables) {
-                    new_c.push(variables[v])
-                } else {
-                    return [["ERROR", "VARIABLE `:" + v + "` HAS NO VALUE"]]
-                }
-            } else {
-                new_c.push(c[j])
-            }
-        }
-        out.push(new_c)
+        out.push(c)
     }
     return out.concat(expand_commands(cmds, depth, variables))
 }
@@ -190,6 +218,7 @@ function run_command() {
     var infobox = document.getElementById("infobox")
     var inputbox = document.getElementById("inputbox")
     var command = inputbox.value
+    command = command.split(";")[0]
     while (command[0] == " ") {
         command = command.substr(1)
     }
@@ -745,7 +774,7 @@ function is_command(c) {
 }
 
 function show_logohelp() {
-    var info = "<a href='javascript:hide_logohelp()'>Hide help</a><br />"
+    var info = "<a href='javascript:hide_logohelp()'>Hide command help</a><br />"
     info += "Supported commands:"
     info += "<ul>"
     for (var i = 0; i < commands.length; i++) {
@@ -776,7 +805,7 @@ function show_logohelp() {
 }
 
 function hide_logohelp() {
-    document.getElementById("logohelp").innerHTML = "<a href='javascript:show_logohelp()'>Show help</a><br />"
+    document.getElementById("logohelp").innerHTML = "<a href='javascript:show_logohelp()'>Show command help</a><br />"
 }
 
 function show_titlescreen() {
