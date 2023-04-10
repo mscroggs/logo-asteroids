@@ -16,7 +16,7 @@ var WIDTH = 800
 var HEIGHT = 450
 
 // game data
-var spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
+var turtle = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
 var drawnlines = []
 var asterN = 2
 var asteroids = []
@@ -46,6 +46,9 @@ var commands = [
     [["ht", "hideturtle"], "hide the turtle", [], [], false],
     [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"], false],
     [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], [], false],
+    [["pos", "position"], "the turtle's current position", ["print pos"], [], true],
+    [["posx", "positionx"], "the turtle's current x-position", ["print posx"], [], true],
+    [["posy", "positiony"], "the turtle's current y-positioon", ["print posy"], [], true],
     [["pots", "printouttitles"], "print out names of (custom) procedures", [], [], false],
     [["print", "pr"], "print out a value", ["print random 100"], ["QUOTE OR NUMBER"], false],
     [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], [], false],
@@ -55,8 +58,12 @@ var commands = [
     [["reset", "cleargraphics", "cg"], "erase all the lines are move back to the centre", [], [], false],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"], false],
     [["seth", "setheading"], "set the turtle's heading (angle with horizontal)", [], ["NUMBER"], false],
+    [["setx"], "set the turtle's x position", [], ["NUMBER"], false],
+    [["setxy"], "set the turtle's x and y positions", [], ["NUMBER", "NUMBER"], false],
+    [["sety"], "set the turtle's y position", [], ["NUMBER"], false],
     [["st", "showturtle"], "show the turtle", [], [], false],
     [["to"], "define a (custom) procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["STRING", "?: ... END"], false],
+    [["towards"], "point the turtle towards a point", ["towards 100 50"], ["NUMBER", "NUMBER"], false],
 
     // maths commands
     [["arccos", "acos"], "compute the inverse cosine of a number", ["print arccos 0.5"], ["NUMBER"], true],
@@ -66,7 +73,10 @@ var commands = [
     [["cos", "cosine"], "compute the cosine of a number", ["print cos 30"], ["NUMBER"], true],
     [["exp"], "compute e to the power of a number", ["print exp 2"], ["NUMBER"], true],
     [["ln", "log"], "compute the log (base e) of a number", ["print ln 2"], ["NUMBER"], true],
+    [["quotient"], "compute the integer division of two numbers", ["print quotient 10 3"], ["INT", "INT"], true],
+    [["remainder"], "compute the remainder when a value is divided by another number", ["print remainder 10 3"], ["INT", "INT"], true],
     [["sin", "sine"], "compute the sine of a number", ["print sin 30"], ["NUMBER"], true],
+    [["sum"], "compute the sum of two values", ["print sum 30 50"], ["NUMBER", "NUMBER"], true],
     [["sqrt"], "compute the square root of a number", ["print sin 30"], ["NUMBER"], true],
     [["tan", "tangent"], "compute the tangent of a number", ["print tan 30"], ["NUMBER"], true],
 
@@ -85,6 +95,8 @@ function parse_arg(cmds, format, variables) {
                 value += " " + cmds.shift()
             }
             return ["QUOTE", value]
+        } else if (value == "pos") {
+            return ["QUOTE", turtle["x"] + " " + turtle["y"]]
         } else {
             format = "NUMBER"
         }
@@ -121,13 +133,23 @@ function parse_arg(cmds, format, variables) {
             }
             out = [format, Math.floor(Math.random() * next[1])]
         } else if (value == "heading") {
-            out = [format, spaceship["rotation"] * 180 / Math.PI]
+            out = [format, turtle["rotation"] * 180 / Math.PI]
+            if (format == "INT") {
+                out[1] = Math.floor(out[1])
+            }
+        } else if (value == "posx") {
+            out = [format, turtle["x"]]
+            if (format == "INT") {
+                out[1] = Math.floor(out[1])
+            }
+        } else if (value == "posy") {
+            out = [format, turtle["y"]]
             if (format == "INT") {
                 out[1] = Math.floor(out[1])
             }
         } else if (value == "distance") {
-            var next1 = parse_arg(cmds, "INT", variables)
-            var next2 = parse_arg(cmds, "INT", variables)
+            var next1 = parse_arg(cmds, "NUMBER", variables)
+            var next2 = parse_arg(cmds, "NUMBER", variables)
             if (next1[0] == "ERROR") {
                 return next1
             }
@@ -140,7 +162,37 @@ function parse_arg(cmds, format, variables) {
             if (next2[1] < 0 || next2[1] > HEIGHT) {
                 return ["ERROR", "SECOND INPUT TO `distance` MUST BE BETWEEN 0 AND " + HEIGHT]
             }
-            out = ["NUMBER", Math.sqrt(Math.pow(next1[1] - spaceship["x"], 2) + Math.pow(next2[1] - spaceship["y"], 2))]
+            out = ["NUMBER", Math.sqrt(Math.pow(next1[1] - turtle["x"], 2) + Math.pow(next2[1] - turtle["y"], 2))]
+        } else if (value == "quotient") {
+            var next1 = parse_arg(cmds, "INT", variables)
+            var next2 = parse_arg(cmds, "INT", variables)
+            if (next1[0] == "ERROR") {
+                return next1
+            }
+            if (next2[0] == "ERROR") {
+                return next2
+            }
+            out = ["INT", Math.floor(next1[1] / next2[1])]
+        } else if (value == "remainder") {
+            var next1 = parse_arg(cmds, "INT", variables)
+            var next2 = parse_arg(cmds, "INT", variables)
+            if (next1[0] == "ERROR") {
+                return next1
+            }
+            if (next2[0] == "ERROR") {
+                return next2
+            }
+            out = ["INT", next1[1] % next2[1]]
+        } else if (value == "sum") {
+            var next1 = parse_arg(cmds, "NUMBER", variables)
+            var next2 = parse_arg(cmds, "NUMBER", variables)
+            if (next1[0] == "ERROR") {
+                return next1
+            }
+            if (next2[0] == "ERROR") {
+                return next2
+            }
+            out = ["NUMBER", next1[1] + next2[1]]
         } else if (value in trig_functions) {
             var next = parse_arg(cmds, "NUMBER", variables)
             if (next[0] == "ERROR") {
@@ -399,48 +451,94 @@ function run_command() {
             while (cmds.length > 0) {
                 var c = cmds.shift()
                 if (c[0] == "fd") {
-                    var old_x = spaceship["x"]
-                    var old_y = spaceship["y"]
-                    spaceship["x"] += c[1] * Math.cos(spaceship["rotation"])
-                    spaceship["y"] += c[1] * Math.sin(spaceship["rotation"])
-                    if (spaceship["pd"]) {
-                        make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+                    var old_x = turtle["x"]
+                    var old_y = turtle["y"]
+                    turtle["x"] += c[1] * Math.cos(turtle["rotation"])
+                    turtle["y"] += c[1] * Math.sin(turtle["rotation"])
+                    if (turtle["pd"]) {
+                        make_line([old_x, old_y], [turtle["x"], turtle["y"]])
                     }
-                    spaceship_wrap()
+                    turtle_wrap()
                 } else if (c[0] == "bk") {
-                    var old_x = spaceship["x"]
-                    var old_y = spaceship["y"]
-                    spaceship["x"] -= c[1] * Math.cos(spaceship["rotation"])
-                    spaceship["y"] -= c[1] * Math.sin(spaceship["rotation"])
-                    if (spaceship["pd"]) {
-                        make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+                    var old_x = turtle["x"]
+                    var old_y = turtle["y"]
+                    turtle["x"] -= c[1] * Math.cos(turtle["rotation"])
+                    turtle["y"] -= c[1] * Math.sin(turtle["rotation"])
+                    if (turtle["pd"]) {
+                        make_line([old_x, old_y], [turtle["x"], turtle["y"]])
                     }
-                    spaceship_wrap()
+                    turtle_wrap()
                 } else if (c[0] == "home") {
-                    if (spaceship["pd"]) {
-                        make_line([spaceship["x"], spaceship["y"]], [WIDTH/2, HEIGHT/2])
+                    if (turtle["pd"]) {
+                        make_line([turtle["x"], turtle["y"]], [WIDTH/2, HEIGHT/2])
                     }
-                    spaceship["x"] = WIDTH/2
-                    spaceship["y"] = HEIGHT/2
-                    spaceship_wrap()
+                    turtle["x"] = WIDTH/2
+                    turtle["y"] = HEIGHT/2
+                    turtle_wrap()
                 } else if (c[0] == "rt") {
-                    spaceship["rotation"] += c[1] * Math.PI / 180
+                    turtle["rotation"] += c[1] * Math.PI / 180
+                    while (turtle["rotation"] > 2 * Math.PI) { turtle["rotation"] -= 2 * Math.PI}
+                    while (turtle["rotation"] < 0) { turtle["rotation"] += 2 * Math.PI}
                 } else if (c[0] == "lt") {
-                    spaceship["rotation"] -= c[1] * Math.PI / 180
+                    turtle["rotation"] -= c[1] * Math.PI / 180
+                    while (turtle["rotation"] > 2 * Math.PI) { turtle["rotation"] -= 2 * Math.PI}
+                    while (turtle["rotation"] < 0) { turtle["rotation"] += 2 * Math.PI}
                 } else if (c[0] == "seth") {
                     if (c[1] >= 0 && c[1] <= 360) {
-                        spaceship["rotation"] = c[1] * Math.PI / 180
+                        turtle["rotation"] = c[1] * Math.PI / 180
                     } else {
                         infobox.innerHTML += "\n  HEADING MUST BE SET TO A VALUE BETWEEN 0 AND 360"
                     }
+                } else if (c[0] == "towards") {
+                    if (c[1] >= 0 && c[1] <= WIDTH && c[2] >= 0 && c[2] <= HEIGHT) {
+                        turtle["rotation"] = Math.atan2(c[2] - turtle["y"], c[1] - turtle["x"])
+                    }
+                    if (c[1] < 0 || c[1] > WIDTH) {
+                        infobox.innerHTML += "\n  X MUST BE A VALUE BETWEEN 0 AND " + WIDTH
+                    }
+                    if (c[2] < 0 || c[2] > HEIGHT) {
+                        infobox.innerHTML += "\n  Y MUST BE A VALUE BETWEEN 0 AND " + HEIGHT
+                    }
+                } else if (c[0] == "setx") {
+                    if (c[1] >= 0 && c[1] <= WIDTH) {
+                        if (turtle["pd"]) {
+                            make_line([turtle["x"], turtle["y"]], [c[1], turtle["y"]])
+                        }
+                        turtle["x"] = c[1]
+                    } else {
+                        infobox.innerHTML += "\n  X MUST BE SET TO A VALUE BETWEEN 0 AND " + WIDTH
+                    }
+                } else if (c[0] == "sety") {
+                    if (c[1] >= 0 && c[1] <= HEIGHT) {
+                        if (turtle["pd"]) {
+                            make_line([turtle["x"], turtle["y"]], [turtle["x"], c[1]])
+                        }
+                        turtle["y"] = c[1]
+                    } else {
+                        infobox.innerHTML += "\n  Y MUST BE SET TO A VALUE BETWEEN 0 AND " + HEIGHT
+                    }
+                } else if (c[0] == "setxy") {
+                    if (c[1] >= 0 && c[1] <= WIDTH && c[2] >= 0 && c[2] <= HEIGHT) {
+                        if (turtle["pd"]) {
+                            make_line([turtle["x"], turtle["y"]], [c[1], c[2]])
+                        }
+                        turtle["x"] = c[1]
+                        turtle["y"] = c[2]
+                    }
+                    if (c[1] < 0 || c[1] > WIDTH) {
+                        infobox.innerHTML += "\n  X MUST BE SET TO A VALUE BETWEEN 0 AND " + WIDTH
+                    }
+                    if (c[2] < 0 || c[2] > HEIGHT) {
+                        infobox.innerHTML += "\n  Y MUST BE SET TO A VALUE BETWEEN 0 AND " + HEIGHT
+                    }
                 } else if (c[0] == "pu") {
-                    spaceship["pd"] = false
+                    turtle["pd"] = false
                 } else if (c[0] == "pd") {
-                    spaceship["pd"] = true
+                    turtle["pd"] = true
                 } else if (c[0] == "ht") {
-                    spaceship["st"] = false
+                    turtle["st"] = false
                 } else if (c[0] == "st") {
-                    spaceship["st"] = true
+                    turtle["st"] = true
                 } else if (c[0] == "cs") {
                     drawnlines = []
                 } else if (c[0] == "print") {
@@ -454,7 +552,7 @@ function run_command() {
                     infobox.innerHTML += "\n  " + list
                 } else if (c[0] == "reset") {
                     drawnlines = []
-                    spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
+                    turtle = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
                 } else if (c[0] == "er") {
                     if (c[1] in custom_commands) {
                         delete custom_commands[c[1]]
@@ -466,7 +564,7 @@ function run_command() {
                 } else if (c[0] == "help") {
                     show_logohelp()
                 } else if (c[0] == "fire") {
-                    fires.push({"age": 40,"x": spaceship["x"]+15*Math.cos(spaceship["rotation"]),"y": spaceship["y"]+15*Math.sin(spaceship["rotation"]),"rotation": spaceship["rotation"]})
+                    fires.push({"age": 40,"x": turtle["x"]+15*Math.cos(turtle["rotation"]),"y": turtle["y"]+15*Math.sin(turtle["rotation"]),"rotation": turtle["rotation"]})
                 } else if (c[0] == "start") {
                     infobox.innerHTML += "\n  GAME ALREADY RUNNING"
                 } else {
@@ -479,24 +577,24 @@ function run_command() {
     infobox.scrollTop = infobox.scrollHeight
 }
 
-function spaceship_wrap() {
-    while (spaceship["x"] > WIDTH) {
-        spaceship["x"] -= WIDTH
+function turtle_wrap() {
+    while (turtle["x"] > WIDTH) {
+        turtle["x"] -= WIDTH
     }
-    while (spaceship["x"] < 0) {
-        spaceship["x"] += WIDTH
+    while (turtle["x"] < 0) {
+        turtle["x"] += WIDTH
     }
-    while (spaceship["y"] > HEIGHT) {
-        spaceship["y"] -= HEIGHT
+    while (turtle["y"] > HEIGHT) {
+        turtle["y"] -= HEIGHT
     }
-    while (spaceship["y"] < 0) {
-        spaceship["y"] += HEIGHT
+    while (turtle["y"] < 0) {
+        turtle["y"] += HEIGHT
     }
-    while (spaceship["rotation"] > 2*Math.PI) {
-        spaceship["rotation"] -= 2*Math.PI
+    while (turtle["rotation"] > 2*Math.PI) {
+        turtle["rotation"] -= 2*Math.PI
     }
-    while (spaceship["rotation"] < 0) {
-        spaceship["rotation"] += 2*Math.PI
+    while (turtle["rotation"] < 0) {
+        turtle["rotation"] += 2*Math.PI
     }
 }
 
@@ -561,16 +659,16 @@ function draw_game() {
     ctx.strokeStyle = "#FFFFFF"
     ctx.lineWidth = 2;
     ctx.beginPath()
-    if (lives > 0 && spaceship["st"]) {
+    if (lives > 0 && turtle["st"]) {
         add_lines(ctx, [
-            [spaceship["x"], spaceship["y"]],
-            [spaceship["x"]+10*Math.cos(3*Math.PI/4+spaceship["rotation"]),
-             spaceship["y"]+10*Math.sin(3*Math.PI/4+spaceship["rotation"])],
-            [spaceship["x"]+15*Math.cos(spaceship["rotation"]),
-             spaceship["y"]+15*Math.sin(spaceship["rotation"])],
-            [spaceship["x"]+10*Math.cos(-3*Math.PI/4+spaceship["rotation"]),
-             spaceship["y"]+10*Math.sin(-3*Math.PI/4+spaceship["rotation"])],
-            [spaceship["x"], spaceship["y"]]
+            [turtle["x"], turtle["y"]],
+            [turtle["x"]+10*Math.cos(3*Math.PI/4+turtle["rotation"]),
+             turtle["y"]+10*Math.sin(3*Math.PI/4+turtle["rotation"])],
+            [turtle["x"]+15*Math.cos(turtle["rotation"]),
+             turtle["y"]+15*Math.sin(turtle["rotation"])],
+            [turtle["x"]+10*Math.cos(-3*Math.PI/4+turtle["rotation"]),
+             turtle["y"]+10*Math.sin(-3*Math.PI/4+turtle["rotation"])],
+            [turtle["x"], turtle["y"]]
         ])
     }
 
@@ -654,7 +752,7 @@ function end_game() {
 }
 
 function reset() {
-    spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
+    turtle = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
     asteroids = make_new_asteroids(asterN)
     drawnlines = []
     fires = []
@@ -690,13 +788,13 @@ function check_collisions() {
         fired.push(false)
     }
     var ship_points = [
-        [spaceship["x"], spaceship["y"]],
-        [spaceship["x"]+10*Math.cos(3*Math.PI/4+spaceship["rotation"]),
-         spaceship["y"]+10*Math.sin(3*Math.PI/4+spaceship["rotation"])],
-        [spaceship["x"]+15*Math.cos(spaceship["rotation"]),
-         spaceship["y"]+15*Math.sin(spaceship["rotation"])],
-        [spaceship["x"]+10*Math.cos(-3*Math.PI/4+spaceship["rotation"]),
-         spaceship["y"]+10*Math.sin(-3*Math.PI/4+spaceship["rotation"])],
+        [turtle["x"], turtle["y"]],
+        [turtle["x"]+10*Math.cos(3*Math.PI/4+turtle["rotation"]),
+         turtle["y"]+10*Math.sin(3*Math.PI/4+turtle["rotation"])],
+        [turtle["x"]+15*Math.cos(turtle["rotation"]),
+         turtle["y"]+15*Math.sin(turtle["rotation"])],
+        [turtle["x"]+10*Math.cos(-3*Math.PI/4+turtle["rotation"]),
+         turtle["y"]+10*Math.sin(-3*Math.PI/4+turtle["rotation"])],
     ]
 
     for (var i = 0; i < asteroids.length; i++) {
@@ -727,23 +825,23 @@ function check_collisions() {
                 if (Math.pow(s[0]-a["x"], 2) + Math.pow(s[1]-a["y"], 2) < Math.pow(radius(a["sides"]), 2)) {
                     lives--;
                     for (var k = 0; k < 20; k++) {
-                        explosions.push({"x": spaceship["x"], "y": spaceship["y"], "rotation": Math.random()*Math.PI*2, "speed": 0.5 + 2 * Math.random(), "age": 50})
+                        explosions.push({"x": turtle["x"], "y": turtle["y"], "rotation": Math.random()*Math.PI*2, "speed": 0.5 + 2 * Math.random(), "age": 50})
                     }
                     if (lives == 0) {
                         gameover()
                     } else {
-                        var x = spaceship["x"]
-                        var y = spaceship["y"]
+                        var x = turtle["x"]
+                        var y = turtle["y"]
                         var attempts = 0
                         while (too_close_any(x, y) && attempts < 50) {
                             x = 20 + Math.random() * (WIDTH - 40)
                             y = 20 + Math.random() * (HEIGHT - 40)
                             attempts++
                         }
-                        spaceship["x"] = x
-                        spaceship["y"] = y
-                        spaceship["speed"] = 0
-                        spaceship["rotation"] = Math.random() * 2 * Math.PI
+                        turtle["x"] = x
+                        turtle["y"] = y
+                        turtle["speed"] = 0
+                        turtle["rotation"] = Math.random() * 2 * Math.PI
                     }
                 }
             }
@@ -771,11 +869,11 @@ function make_new_asteroids(n) {
     var out = []
 
     for (var i = 0; i < n; i++) {
-        new_a = {"x": spaceship["x"], "y": spaceship["y"], "sides": 6,
+        new_a = {"x": turtle["x"], "y": turtle["y"], "sides": 6,
                  "speed": 0.5+Math.random()*0.5, "rotation": Math.random()*Math.PI*2,
                  "direction": Math.random()*Math.PI*2}
         var attempts = 0
-        while (too_close(new_a, spaceship) && attempts < 50) {
+        while (too_close(new_a, turtle) && attempts < 50) {
             new_a["x"] = Math.random() * WIDTH
             new_a["y"] = Math.random() * HEIGHT
             attempts++
