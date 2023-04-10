@@ -38,6 +38,8 @@ var commands = [
     [["cs", "clearscreen", "clean"], "erase all the lines", [], [], false],
     [["distance"], "get the distance from the turtle to a point", ["print distance 100 50"], ["NUMBER", "NUMBER"], true],
     [["end"], "ends a procedure", ["to square repeat 4 [fd 100 rt 90] end"], [], true],
+    [["er", "erase"], "erase a (custom) prodecure", ["er square"], ["STRING"], false],
+    [["erall", "eraseall"], "erase all (custom) procedures", [], [], false],
     [["fd", "forward"], "move forward", ["fd 100"], ["NUMBER"], false],
     [["home"], "move the turtle back to the centre", [], [], false],
     [["ht", "hideturtle"], "hide the turtle", [], [], false],
@@ -51,7 +53,7 @@ var commands = [
     [["reset", "cleargraphics", "cg"], "erase all the lines are move back to the centre", [], [], false],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"], false],
     [["st", "showturtle"], "show the turtle", [], [], false],
-    [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["STRING", "?: ... END"], false],
+    [["to"], "define a (custom) procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["STRING", "?: ... END"], false],
 
     // maths commands
     [["arccos", "acos"], "compute the inverse cosine of a number", ["print arccos 0.5"], ["NUMBER"], true],
@@ -432,6 +434,14 @@ function run_command() {
                 } else if (c[0] == "reset") {
                     drawnlines = []
                     spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
+                } else if (c[0] == "er") {
+                    if (c[1] in custom_commands) {
+                        delete custom_commands[c[1]]
+                    } else {
+                        infobox.innerHTML += "\n  CANNOT ERASE `" + c[1] + "` (DOES NOT EXIST)"
+                    }
+                } else if (c[0] == "erall") {
+                    custom_commands = {}
                 } else if (c[0] == "help") {
                     show_logohelp()
                 } else if (c[0] == "fire") {
