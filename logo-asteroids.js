@@ -40,6 +40,7 @@ var commands = [
     [["ht", "hideturtle"], "hide the turtle", [], []],
     [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"]],
     [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], []],
+    [["print"], "print out a value", ["print random 100"], ["NUMBER"]],
     [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], []],
     [["random"], "pick a random integer", ["fd random 100"], ["INT"]],
     [["repcount"], "the current iteration number in a repeat loop", ["repeat 4 [fd 10 * repcount rt 90]"], []],
@@ -331,6 +332,8 @@ function run_command() {
                 spaceship["st"] = true
             } else if (c[0] == "cs") {
                 drawnlines = []
+            } else if (c[0] == "print") {
+                infobox.innerHTML += "\n  " + c[1]
             } else if (c[0] == "reset") {
                 drawnlines = []
                 spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
