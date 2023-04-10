@@ -45,7 +45,7 @@ var commands = [
     [["reset"], "erase all the lines are move back to the centre", [], []],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"]],
     [["st", "showturtle"], "show the turtle", [], []],
-    [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["?: ... END"]],
+    [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["STRING", "?: ... END"]],
 
     // special commands
     [["fire"], "fire at the asteroids", [], []],
@@ -54,10 +54,11 @@ var commands = [
 ]
 
 
-function parse_command(sc) {
-    if (sc.length == 0) { return [] }
+function expand_commands(cmds, depth, variables) {
+    if (cmds.length == 0) { return [] }
+    if (depth > 50) { return [["ERROR", "MAXIMUM RECURSION DEPTH REACHED"]] }
     var args = []
-    var cmd = sc.shift()
+    var cmd = cmds.shift()
 
     if (cmd in custom_commands) {
         for (var i = 0; i < custom_commands[cmd][0].length; i++) {
@@ -74,12 +75,12 @@ function parse_command(sc) {
         }
     }
 
-    if (args.length > sc.length) {
+    if (args.length > cmds.length) {
         return [["ERROR", "WRONG NUMBER OF INPUTS FOR COMMAND `" + cmd + "`"]]
     }
     var c = [cmd]
     for (var i = 0; i < args.length; i++) {
-        value = sc.shift()
+        value = cmds.shift()
         if (value[0] == ":" && (args[i] == "NUMBER" || args[i] == "INT")) {
             c.push(value)
         } else if (args[i] == "NUMBER") {
@@ -96,7 +97,8 @@ function parse_command(sc) {
             }
             c.push(value * 1)
         } else if (args[i] == "STRING") {
-            if(!value.match()) {
+            value = value.toLowerCase()
+            if(!value.match(/^[a-z0-9_]+$/)) {
                 return [["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]]
             }
             c.push(value)
@@ -105,27 +107,27 @@ function parse_command(sc) {
                 return [["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]]
             }
             var bracketed = value.substr(1)
-            while (sc.length >= 0) {
+            while (cmds.length >= 0) {
                 if (bracketed[bracketed.length - 1] == "]" && (bracketed.match(/\[/g) || []).length + 1 == (bracketed.match(/\]/g) || []).length) {
                     bracketed = bracketed.substr(0, bracketed.length - 1)
                     break
                 }
-                if (sc.length == 0) {break}
-                bracketed += " " + sc.shift()
+                if (cmds.length == 0) {break}
+                bracketed += " " + cmds.shift()
             }
             if ((bracketed.match(/\[/g) || []).length != (bracketed.match(/\]/g) || []).length) {
                 return [["ERROR", "INPUT TO COMMAND `" + cmd + "` NEEDS SQUARE BRACKETS"]]
             }
-            c.push(parse_command(bracketed.split(" ")))
+            c.push(bracketed.split(" "))
         } else if (args[i] == "?: ... END") {
             inputs = []
             while (value[0] == ":") {
                 inputs.push(value.substr(1))
-                value = sc.shift()
+                value = cmds.shift()
             }
             var body = value
-            while (value != "end" && sc.length > 0) {
-                value = sc.shift()
+            while (value != "end" && cmds.length > 0) {
+                value = cmds.shift()
                 body += " " + value
             }
             if (value != "end") {
@@ -133,57 +135,55 @@ function parse_command(sc) {
             }
             body = body.substr(0, body.length - 4)
             c.push(inputs)
-            c.push(parse_command(body.split(" ")))
+            c.push(body.split(" "))
         } else {
             return [["ERROR", "PARSING OF INPUT OF TYPE `" + args[i] + "` NOT SUPPORTED"]]
         }
     }
-    return [c].concat(parse_command(sc))
-}
 
-function expand_commands(cmds, depth, variables) {
-    if (depth > 50) {
-        return [["ERROR", "MAXIMUM RECURSION DEPTH REACHED"]]
-    }
+
     var out = []
-    for (var i = 0; i < cmds.length; i++) {
-        var c = cmds[i]
-        if (c[0] == "repeat") {
-            for (var j = 0; j < c[1]; j++) {
-                out = out.concat(expand_commands(c[2], depth + 1, variables))
-            }
-        } else if (c[0] in custom_commands) {
-            var new_variables = {}
-            for (v in variables) {
-                new_variables[v] = variables[v]
-            }
-            for (var j = 0; j < custom_commands[c[0]][0].length; j++) {
-                new_variables[custom_commands[c[0]][0][j]] = c[j+1]
-            }
-            out = out.concat(expand_commands(custom_commands[c[0]][1], depth + 1, new_variables))
-        } else if (c[0] == "to") {
-            if (is_command(c[1])) {
-                return [["ERROR", "CANNOT OVERWRITE BUILT IN COMMAND `" + c[1] + "`"]]
-            }
-            custom_commands[c[1]] = [c[2], c[3]]
-        } else {
-            var new_c = []
-            for (var j = 0; j < c.length; j++) {
-                if (c[j][0] == ":") {
-                    var v = c[j].substr(1)
-                    if (v in variables) {
-                        new_c.push(variables[v])
-                    } else {
-                        return [["ERROR", "VARIABLE `:" + v + "` HAS NO VALUE"]]
-                    }
-                } else {
-                    new_c.push(c[j])
-                }
-            }
-            out.push(new_c)
+    if (c[0] == "repeat") {
+        var repeated = []
+        for (var j = 0; j < c[1]; j++) {
+            repeated = repeated.concat(c[2])
         }
+        out = expand_commands(repeated, depth + 1, variables)
+    } else if (c[0] in custom_commands) {
+        var new_variables = {}
+        for (v in variables) {
+            new_variables[v] = variables[v]
+        }
+        for (var j = 0; j < custom_commands[c[0]][0].length; j++) {
+            new_variables[custom_commands[c[0]][0][j]] = c[j+1]
+        }
+        var cc = []
+        for (var i = 0; i < custom_commands[c[0]][1].length; i++) {
+            cc.push(custom_commands[c[0]][1][i])
+        }
+        out = expand_commands(cc, depth + 1, new_variables)
+    } else if (c[0] == "to") {
+        if (is_command(c[1])) {
+            return [["ERROR", "CANNOT OVERWRITE BUILT IN COMMAND `" + c[1] + "`"]]
+        }
+        custom_commands[c[1]] = [c[2], c[3]]
+    } else {
+        var new_c = []
+        for (var j = 0; j < c.length; j++) {
+            if (c[j][0] == ":") {
+                var v = c[j].substr(1)
+                if (v in variables) {
+                    new_c.push(variables[v])
+                } else {
+                    return [["ERROR", "VARIABLE `:" + v + "` HAS NO VALUE"]]
+                }
+            } else {
+                new_c.push(c[j])
+            }
+        }
+        out.push(new_c)
     }
-    return out
+    return out.concat(expand_commands(cmds, depth, variables))
 }
 
 function run_command() {
@@ -202,7 +202,9 @@ function run_command() {
     if (command == "") {
         return
     }
-    cmd_history.push(command)
+    if (cmd_history[cmd_history.length - 1] != command) {
+        cmd_history.push(command)
+    }
     history_n = 0
     history_overwritten = {}
     if (infobox.innerHTML != "") {
@@ -210,12 +212,11 @@ function run_command() {
     }
     infobox.innerHTML += command
     inputbox.value = ""
-    var cmds = parse_command(command.toLowerCase().split(" "))
     var error = false
     var distance = 0
     var firecount = 0
 
-    cmds = expand_commands(cmds, 0, {})
+    var cmds = expand_commands(command.toLowerCase().split(" "), 0, {})
 
     for (var i = 0; i < cmds.length; i++) {
         var c = cmds[i]
@@ -239,12 +240,15 @@ function run_command() {
         infobox.innerHTML += "\n  CANNOT FIRE MORE THAN 10 TIMES IN ONE COMMAND"
     }
     if (!running) {
-        if (c[0] == "start" && !running) {
-            start_game()
-        } else if (c[0] == "help" && !running) {
-            show_logohelp()
-        } else if (lives == 0) {
-            infobox.innerHTML += "\n  CANNOT RUN COMMAND WHEN GAME NOT RUNNING. RUN `start` TO BEGIN"
+        while (cmds.length > 0) {
+            var c = cmds.shift()
+            if (c[0] == "start" && !running) {
+                start_game()
+            } else if (c[0] == "help" && !running) {
+                show_logohelp()
+            } else if (lives == 0) {
+                infobox.innerHTML += "\n  CANNOT RUN COMMAND WHEN GAME NOT RUNNING. RUN `start` TO BEGIN"
+            }
         }
     } else if (!error) {
         while (cmds.length > 0) {
