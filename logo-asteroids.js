@@ -34,21 +34,32 @@ var commands = [
     // FORMAT: [ [command(s)], "description", [example(s)], [arg(s)]]
 
     // turtle commands
+    [["arccos", "acos"], "compute the inverse cosine of a number", ["print arccos 0.5"], ["NUMBER"], true],
+    [["arcsin", "asin"], "compute the inverse sine of a number", ["print arcsin 0.5"], ["NUMBER"], true],
+    [["arctan", "atan"], "compute the inverse tangent of a number", ["print arctan 0.5"], ["NUMBER"], true],
     [["abs"], "compute the absolute value of a number", ["print abs -100"], ["NUMBER"], true],
     [["bk", "back", "backward"], "move backward", ["bk 100"], ["NUMBER"], false],
+    [["cos", "cosine"], "compute the cosine of a number", ["print cos 30"], ["NUMBER"], true],
     [["cs", "clearscreen", "clean"], "erase all the lines", [], [], false],
+    [["end"], "ends a procedure", ["to square repeat 4 [fd 100 rt 90] end"], [], true],
+    [["exp"], "compute e to the power of a number", ["print exp 2"], ["NUMBER"], true],
     [["fd", "forward"], "move forward", ["fd 100"], ["NUMBER"], false],
+    [["home"], "move the turtle back to the centre", [], [], false],
     [["ht", "hideturtle"], "hide the turtle", [], [], false],
+    [["ln", "log"], "compute the log (base e) of a number", ["print ln 2"], ["NUMBER"], true],
     [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"], false],
     [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], [], false],
-    [["print"], "print out a value", ["print random 100"], ["NUMBER"], false],
+    [["print", "pr"], "print out a value", ["print random 100"], ["NUMBER"], false],
     [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], [], false],
     [["random"], "pick a random integer", ["fd random 100"], ["INT"], true],
     [["repcount"], "the current iteration number in a repeat loop", ["repeat 4 [fd 10 * repcount rt 90]"], [], true],
     [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"], ["INT", "[]"], false],
     [["reset", "cleargraphics", "cg"], "erase all the lines are move back to the centre", [], [], false],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"], false],
+    [["sin", "sine"], "compute the sine of a number", ["print sin 30"], ["NUMBER"], true],
+    [["sqrt"], "compute the square root of a number", ["print sin 30"], ["NUMBER"], true],
     [["st", "showturtle"], "show the turtle", [], [], false],
+    [["tan", "tangent"], "compute the tangent of a number", ["print tan 30"], ["NUMBER"], true],
     [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["STRING", "?: ... END"], false],
 
     // special commands
@@ -58,21 +69,62 @@ var commands = [
 ]
 
 function parse_arg(cmds, format, variables) {
-    value = cmds.shift()
+    var value = cmds.shift()
     if (format == "NUMBER" || format == "INT") {
         var out = ["ERROR", "ERROR PARSING NUMBER"]
+        var trig_functions = {
+            "cos": Math.cos,
+            "sin": Math.sin,
+            "tan": Math.tan,
+        }
+        var atrig_functions = {
+            "arccos": Math.acos,
+            "arcsin": Math.asin,
+            "arctan": Math.atan,
+        }
+        var functions = {
+            "abs": Math.abs,
+            "sqrt": Math.sqrt,
+            "exp": Math.exp,
+            "ln": Math.log,
+        }
+        for (var i = 0; i < commands.length; i++) {
+            for (var j = 0; j < commands[i][0].length; j++) {
+                if (value == commands[i][0][j]) {
+                    value = commands[i][0][0]
+                }
+            }
+        }
         if (value == "random") {
             var other = parse_arg(cmds, "INT", variables)
             if (other[0] == "ERROR") {
                 return [other]
             }
             out = [format, Math.floor(Math.random() * other[1])]
-        } else if (value == "abs") {
+        } else if (value in trig_functions) {
             var next = parse_arg(cmds, "NUMBER", variables)
             if (next[0] == "ERROR") {
                 return [next]
             }
-            out = [format, Math.abs(next[1])]
+            if (value == "tan" && (next[1] - 90) % 180 == 0) {
+                return ["ERROR", "MATH DOMAIN ERROR"]
+            }
+            out = [format, trig_functions[value](next[1] * Math.PI / 180)]
+        } else if (value in atrig_functions) {
+            var next = parse_arg(cmds, "NUMBER", variables)
+            if (next[0] == "ERROR") {
+                return [next]
+            }
+            if ((value == "arccos" || value == "arcsin") && (next[1] > 1 || next[1] < -1)) {
+                return ["ERROR", "MATH DOMAIN ERROR"]
+            }
+            out = [format, atrig_functions[value](next[1]) * 180 / Math.PI]
+        } else if (value in functions) {
+            var next = parse_arg(cmds, "NUMBER", variables)
+            if (next[0] == "ERROR") {
+                return [next]
+            }
+            out = [format, functions[value](next[1])]
         } else if (value == "repcount") {
             if ("!repcount" in variables) {
                 out = [format, variables["!repcount"]]
@@ -323,6 +375,13 @@ function run_command() {
                     if (spaceship["pd"]) {
                         make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
                     }
+                    spaceship_wrap()
+                } else if (c[0] == "home") {
+                    if (spaceship["pd"]) {
+                        make_line([spaceship["x"], spaceship["y"]], [WIDTH/2, HEIGHT/2])
+                    }
+                    spaceship["x"] = WIDTH/2
+                    spaceship["y"] = HEIGHT/2
                     spaceship_wrap()
                 } else if (c[0] == "rt") {
                     spaceship["rotation"] += c[1] * Math.PI / 180
