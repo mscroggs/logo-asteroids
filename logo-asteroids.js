@@ -41,10 +41,12 @@ var commands = [
     [["er", "erase"], "erase a (custom) prodecure", ["er square"], ["STRING"], false],
     [["erall", "eraseall"], "erase all (custom) procedures", [], [], false],
     [["fd", "forward"], "move forward", ["fd 100"], ["NUMBER"], false],
+    [["heading"], "the current heading (angle with horizontal) of the turtle", ["print heading"], [], true],
     [["home"], "move the turtle back to the centre", [], [], false],
     [["ht", "hideturtle"], "hide the turtle", [], [], false],
     [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"], false],
     [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], [], false],
+    [["pots", "printouttitles"], "print out names of (custom) procedures", [], [], false],
     [["print", "pr"], "print out a value", ["print random 100"], ["QUOTE OR NUMBER"], false],
     [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], [], false],
     [["random"], "pick a random integer", ["fd random 100"], ["INT"], true],
@@ -52,6 +54,7 @@ var commands = [
     [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"], ["INT", "[]"], false],
     [["reset", "cleargraphics", "cg"], "erase all the lines are move back to the centre", [], [], false],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"], false],
+    [["seth", "setheading"], "set the turtle's heading (angle with horizontal)", [], ["NUMBER"], false],
     [["st", "showturtle"], "show the turtle", [], [], false],
     [["to"], "define a (custom) procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["STRING", "?: ... END"], false],
 
@@ -117,6 +120,11 @@ function parse_arg(cmds, format, variables) {
                 return next
             }
             out = [format, Math.floor(Math.random() * next[1])]
+        } else if (value == "heading") {
+            out = [format, spaceship["rotation"] * 180 / Math.PI]
+            if (format == "INT") {
+                out[1] = Math.floor(out[1])
+            }
         } else if (value == "distance") {
             var next1 = parse_arg(cmds, "INT", variables)
             var next2 = parse_arg(cmds, "INT", variables)
@@ -289,7 +297,7 @@ function expand_commands(cmds, depth, variables) {
     var out = []
     if (c[0] == "repeat") {
         var new_variables = {}
-        for (v in variables) {
+        for (var v in variables) {
             new_variables[v] = variables[v]
         }
         for (var j = 0; j < c[1]; j++) {
@@ -299,7 +307,7 @@ function expand_commands(cmds, depth, variables) {
         }
     } else if (c[0] in custom_commands) {
         var new_variables = {}
-        for (v in variables) {
+        for (var v in variables) {
             new_variables[v] = variables[v]
         }
         for (var j = 0; j < custom_commands[c[0]][0].length; j++) {
@@ -419,6 +427,12 @@ function run_command() {
                     spaceship["rotation"] += c[1] * Math.PI / 180
                 } else if (c[0] == "lt") {
                     spaceship["rotation"] -= c[1] * Math.PI / 180
+                } else if (c[0] == "seth") {
+                    if (c[1] >= 0 && c[1] <= 360) {
+                        spaceship["rotation"] = c[1] * Math.PI / 180
+                    } else {
+                        infobox.innerHTML += "\n  HEADING MUST BE SET TO A VALUE BETWEEN 0 AND 360"
+                    }
                 } else if (c[0] == "pu") {
                     spaceship["pd"] = false
                 } else if (c[0] == "pd") {
@@ -431,6 +445,13 @@ function run_command() {
                     drawnlines = []
                 } else if (c[0] == "print") {
                     infobox.innerHTML += "\n  " + c[1]
+                } else if (c[0] == "pots") {
+                    var list = ""
+                    for (var f in custom_commands) {
+                        if (list != "") { list += ", " }
+                        list += f
+                    }
+                    infobox.innerHTML += "\n  " + list
                 } else if (c[0] == "reset") {
                     drawnlines = []
                     spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
