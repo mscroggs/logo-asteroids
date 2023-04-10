@@ -34,26 +34,27 @@ var commands = [
     // FORMAT: [ [command(s)], "description", [example(s)], [arg(s)]]
 
     // turtle commands
-    [["bk", "back", "backward"], "move backward", ["bk 100"], ["NUMBER"]],
-    [["cs", "clearscreen"], "erase all the lines", [], []],
-    [["fd", "forward"], "move forward", ["fd 100"], ["NUMBER"]],
-    [["ht", "hideturtle"], "hide the turtle", [], []],
-    [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"]],
-    [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], []],
-    [["print"], "print out a value", ["print random 100"], ["NUMBER"]],
-    [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], []],
-    [["random"], "pick a random integer", ["fd random 100"], ["INT"]],
-    [["repcount"], "the current iteration number in a repeat loop", ["repeat 4 [fd 10 * repcount rt 90]"], []],
-    [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"], ["INT", "[]"]],
-    [["reset"], "erase all the lines are move back to the centre", [], []],
-    [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"]],
-    [["st", "showturtle"], "show the turtle", [], []],
-    [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["STRING", "?: ... END"]],
+    [["abs"], "compute the absolute value of a number", ["print abs -100"], ["NUMBER"], true],
+    [["bk", "back", "backward"], "move backward", ["bk 100"], ["NUMBER"], false],
+    [["cs", "clearscreen", "clean"], "erase all the lines", [], [], false],
+    [["fd", "forward"], "move forward", ["fd 100"], ["NUMBER"], false],
+    [["ht", "hideturtle"], "hide the turtle", [], [], false],
+    [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"], false],
+    [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], [], false],
+    [["print"], "print out a value", ["print random 100"], ["NUMBER"], false],
+    [["pu", "penup"], "lift the pen up: after this is done, lines will not be drawn", [], [], false],
+    [["random"], "pick a random integer", ["fd random 100"], ["INT"], true],
+    [["repcount"], "the current iteration number in a repeat loop", ["repeat 4 [fd 10 * repcount rt 90]"], [], true],
+    [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"], ["INT", "[]"], false],
+    [["reset", "cleargraphics", "cg"], "erase all the lines are move back to the centre", [], [], false],
+    [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"], false],
+    [["st", "showturtle"], "show the turtle", [], [], false],
+    [["to"], "define a procedure", ["to square repeat 4 [fd 100 rt 90] end", "to square :size repeat 4 [fd :size rt 90] end"], ["STRING", "?: ... END"], false],
 
     // special commands
-    [["fire"], "fire at the asteroids", [], []],
-    [["help"], "show command help", [], []],
-    [["start"], "start the game", [], []],
+    [["fire"], "fire at the asteroids", [], [], false],
+    [["help"], "show command help", [], [], false],
+    [["start"], "start the game", [], [], false],
 ]
 
 function parse_arg(cmds, format, variables) {
@@ -61,11 +62,17 @@ function parse_arg(cmds, format, variables) {
     if (format == "NUMBER" || format == "INT") {
         var out = ["ERROR", "ERROR PARSING NUMBER"]
         if (value == "random") {
-            var rmax = parse_arg(cmds, "INT", variables)
-            if (rmax[0] == "ERROR") {
-                return [rmax]
+            var other = parse_arg(cmds, "INT", variables)
+            if (other[0] == "ERROR") {
+                return [other]
             }
-            out = [format, Math.floor(Math.random() * rmax[1])]
+            out = [format, Math.floor(Math.random() * other[1])]
+        } else if (value == "abs") {
+            var next = parse_arg(cmds, "NUMBER", variables)
+            if (next[0] == "ERROR") {
+                return [next]
+            }
+            out = [format, Math.abs(next[1])]
         } else if (value == "repcount") {
             if ("!repcount" in variables) {
                 out = [format, variables["!repcount"]]
@@ -95,21 +102,21 @@ function parse_arg(cmds, format, variables) {
         }
         if (cmds.length > 0 && (cmds[0] == "+" || cmds[0] == "*" || cmds[0] == "/" || cmds[0] == "-")) {
             var op = cmds.shift()
-            var other = parse_arg(cmds, format, variables)
-            if (other[0] == "ERROR") {
-                return other
+            var next = parse_arg(cmds, format, variables)
+            if (next[0] == "ERROR") {
+                return next
             }
             if (op == "+") {
-                return [format, out[1] + other[1]]
+                return [format, out[1] + next[1]]
             }
             if (op == "-") {
-                return [format, out[1] - other[1]]
+                return [format, out[1] - next[1]]
             }
             if (op == "*") {
-                return [format, out[1] * other[1]]
+                return [format, out[1] * next[1]]
             }
             if (op == "/") {
-                return [format, out[1] / other[1]]
+                return [format, out[1] / next[1]]
             }
         }
         return out
@@ -172,8 +179,12 @@ function expand_commands(cmds, depth, variables) {
         for (var i = 0; i < commands.length; i++){
             for (var j = 0; j < commands[i][0].length; j++) {
                 if (cmd == commands[i][0][j]) {
-                    args = commands[i][3]
-                    cmd = commands[i][0][0]
+                    if (commands[i][4]) {
+                        return [["ERROR", "COMMAND `" + cmd + "` MUST BE USED INSIDE ANOTHER COMMAND"]]
+                    } else {
+                        args = commands[i][3]
+                        cmd = commands[i][0][0]
+                    }
                 }
             }
         }
@@ -265,12 +276,6 @@ function run_command() {
             infobox.innerHTML += "\n  " + c[1]
             error = true
         }
-        if (c[0] == "random") {
-            infobox.innerHTML += "\n  COMMAND `random` MUST BE USED INSIDE ANOTHER COMMAND"
-        }
-        if (c[0] == "repcount") {
-            infobox.innerHTML += "\n  COMMAND `repcount` MUST BE USED INSIDE ANOTHER COMMAND"
-        }
         if (c[0] == "fd" || c[0] == "bk") {
             distance += Math.abs(c[1])
         }
@@ -286,65 +291,67 @@ function run_command() {
         error = true
         infobox.innerHTML += "\n  CANNOT FIRE MORE THAN 10 TIMES IN ONE COMMAND"
     }
-    if (!running) {
-        while (cmds.length > 0) {
-            var c = cmds.shift()
-            if (c[0] == "start" && !running) {
-                start_game()
-            } else if (c[0] == "help" && !running) {
-                show_logohelp()
-            } else if (lives == 0) {
-                infobox.innerHTML += "\n  CANNOT RUN COMMAND WHEN GAME NOT RUNNING. RUN `start` TO BEGIN"
+    if (!error) {
+        if (!running) {
+            while (cmds.length > 0) {
+                var c = cmds.shift()
+                if (c[0] == "start" && !running) {
+                    start_game()
+                } else if (c[0] == "help" && !running) {
+                    show_logohelp()
+                } else if (lives == 0) {
+                    infobox.innerHTML += "\n  CANNOT RUN COMMAND WHEN GAME NOT RUNNING. RUN `start` TO BEGIN"
+                }
             }
-        }
-    } else if (!error) {
-        while (cmds.length > 0) {
-            var c = cmds.shift()
-            if (c[0] == "fd") {
-                var old_x = spaceship["x"]
-                var old_y = spaceship["y"]
-                spaceship["x"] += c[1] * Math.cos(spaceship["rotation"])
-                spaceship["y"] += c[1] * Math.sin(spaceship["rotation"])
-                if (spaceship["pd"]) {
-                    make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+        } else {
+            while (cmds.length > 0) {
+                var c = cmds.shift()
+                if (c[0] == "fd") {
+                    var old_x = spaceship["x"]
+                    var old_y = spaceship["y"]
+                    spaceship["x"] += c[1] * Math.cos(spaceship["rotation"])
+                    spaceship["y"] += c[1] * Math.sin(spaceship["rotation"])
+                    if (spaceship["pd"]) {
+                        make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+                    }
+                    spaceship_wrap()
+                } else if (c[0] == "bk") {
+                    var old_x = spaceship["x"]
+                    var old_y = spaceship["y"]
+                    spaceship["x"] -= c[1] * Math.cos(spaceship["rotation"])
+                    spaceship["y"] -= c[1] * Math.sin(spaceship["rotation"])
+                    if (spaceship["pd"]) {
+                        make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
+                    }
+                    spaceship_wrap()
+                } else if (c[0] == "rt") {
+                    spaceship["rotation"] += c[1] * Math.PI / 180
+                } else if (c[0] == "lt") {
+                    spaceship["rotation"] -= c[1] * Math.PI / 180
+                } else if (c[0] == "pu") {
+                    spaceship["pd"] = false
+                } else if (c[0] == "pd") {
+                    spaceship["pd"] = true
+                } else if (c[0] == "ht") {
+                    spaceship["st"] = false
+                } else if (c[0] == "st") {
+                    spaceship["st"] = true
+                } else if (c[0] == "cs") {
+                    drawnlines = []
+                } else if (c[0] == "print") {
+                    infobox.innerHTML += "\n  " + c[1]
+                } else if (c[0] == "reset") {
+                    drawnlines = []
+                    spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
+                } else if (c[0] == "help") {
+                    show_logohelp()
+                } else if (c[0] == "fire") {
+                    fires.push({"age": 40,"x": spaceship["x"]+15*Math.cos(spaceship["rotation"]),"y": spaceship["y"]+15*Math.sin(spaceship["rotation"]),"rotation": spaceship["rotation"]})
+                } else if (c[0] == "start") {
+                    infobox.innerHTML += "\n  GAME ALREADY RUNNING"
+                } else {
+                    infobox.innerHTML += "\n  UNKNOWN COMMAND `" + c[0] + "`"
                 }
-                spaceship_wrap()
-            } else if (c[0] == "bk") {
-                var old_x = spaceship["x"]
-                var old_y = spaceship["y"]
-                spaceship["x"] -= c[1] * Math.cos(spaceship["rotation"])
-                spaceship["y"] -= c[1] * Math.sin(spaceship["rotation"])
-                if (spaceship["pd"]) {
-                    make_line([old_x, old_y], [spaceship["x"], spaceship["y"]])
-                }
-                spaceship_wrap()
-            } else if (c[0] == "rt") {
-                spaceship["rotation"] += c[1] * Math.PI / 180
-            } else if (c[0] == "lt") {
-                spaceship["rotation"] -= c[1] * Math.PI / 180
-            } else if (c[0] == "pu") {
-                spaceship["pd"] = false
-            } else if (c[0] == "pd") {
-                spaceship["pd"] = true
-            } else if (c[0] == "ht") {
-                spaceship["st"] = false
-            } else if (c[0] == "st") {
-                spaceship["st"] = true
-            } else if (c[0] == "cs") {
-                drawnlines = []
-            } else if (c[0] == "print") {
-                infobox.innerHTML += "\n  " + c[1]
-            } else if (c[0] == "reset") {
-                drawnlines = []
-                spaceship = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
-            } else if (c[0] == "help") {
-                show_logohelp()
-            } else if (c[0] == "fire") {
-                fires.push({"age": 40,"x": spaceship["x"]+15*Math.cos(spaceship["rotation"]),"y": spaceship["y"]+15*Math.sin(spaceship["rotation"]),"rotation": spaceship["rotation"]})
-            } else if (c[0] == "start") {
-                infobox.innerHTML += "\n  GAME ALREADY RUNNING"
-            } else {
-                infobox.innerHTML += "\n  UNKNOWN COMMAND `" + c[0] + "`"
             }
         }
     }
