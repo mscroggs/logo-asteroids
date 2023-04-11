@@ -17,7 +17,7 @@ var HEIGHT = 450
 
 // game data
 var turtle = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
-var gameoptions = {"bg": "#000000", "pc": "#FFFFFF"}
+var gameoptions = {"bg": "#000000", "pc": "#FFFFFF", "pensize": 2}
 var drawnlines = []
 var asterN = 2
 var asteroids = []
@@ -65,6 +65,7 @@ var commands = [
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"], false],
     [["setbg", "setbackground"], "set the background color to a built-in color (" + builtindesc + ") OR AN RGB COLOR", ["setbg 3", "setbg [255 163 0]"], ["COLOR"], false],
     [["setpc", "setpencolor"], "set the pen color to a built-in color (" + builtindesc + ") OR AN RGB COLOR", ["setbg 3", "setbg [255 163 0]"], ["COLOR"], false],
+    [["setpensize"], "set the pen size (from 0 to 255)", ["setpensize 20"], ["INT"], false],
     [["seth", "setheading"], "set the turtle's heading (angle with horizontal)", [], ["NUMBER"], false],
     [["setx"], "set the turtle's x position", [], ["NUMBER"], false],
     [["setxy"], "set the turtle's x and y positions", [], ["NUMBER", "NUMBER"], false],
@@ -111,44 +112,6 @@ function parse_arg(cmds, format, variables) {
         } else {
             format = "NUMBER"
         }
-    }
-    if (format == "COLOR") {
-        var col = [0, 0, 0]
-        if (value[0] == "[") {
-            var bracketed = value.substr(1)
-            while (cmds.length >= 0) {
-                if (bracketed[bracketed.length - 1] == "]" && (bracketed.match(/\[/g) || []).length + 1 == (bracketed.match(/\]/g) || []).length) {
-                    bracketed = bracketed.substr(0, bracketed.length - 1)
-                    break
-                }
-                if (cmds.length == 0) {break}
-                bracketed += " " + cmds.shift()
-            }
-            if ((bracketed.match(/\[/g) || []).length != (bracketed.match(/\]/g) || []).length) {
-                return ["ERROR", "INVALID SQUARE BRACKETS"]
-            }
-            bracketed = bracketed.substr(0, bracketed.length - 1).split(" ")
-            var n0 = parse_arg(bracketed, "INT", variables)
-            if (n0[0] == "ERROR") { return n0 }
-            var n1 = parse_arg(bracketed, "INT", variables)
-            if (n1[0] == "ERROR") { return n1 }
-            var n2 = parse_arg(bracketed, "INT", variables)
-            if (n2[0] == "ERROR") { return n2 }
-            if (bracketed.length > 0) { return ["ERROR", "TOO MANY NUMBERS"] }
-            col = [n0[1], n1[1], n2[1]]
-        } else {
-            cmds.unshift(value)
-            var col_n = parse_arg(cmds, "INT", variables)
-            if (col_n[0] == "ERROR") { return col_n }
-            col_n = col_n[1]
-            if (col_n >= 0 && col_n < builtin.length && col_n == Math.floor(col_n)) {
-                col = builtin[col_n]
-            } else { return ["ERROR", "INVALID COLOR `" + col_n + "`"] }
-        }
-        if (col[0] < 0 || col[0] > 255 || col[1] < 0 || col[1] > 255 || col[2] < 0 || col[2] > 255) {
-            return ["ERROR", "RGB VALUES MUST BE BETWEEN 0 and 255"]
-        }
-        return ["COLOR", "#" + to_hex(col[0]) + to_hex(col[1]) + to_hex(col[2])]
     }
     if (format == "NUMBER" || format == "INT") {
         var out = ["ERROR", "ERROR PARSING NUMBER"]
@@ -320,6 +283,43 @@ function parse_arg(cmds, format, variables) {
             return ["ERROR", "`" + value + "` IS AN INVALID NAME"]
         }
         return [format, value]
+    } else if (format == "COLOR") {
+        var col = [0, 0, 0]
+        if (value[0] == "[") {
+            var bracketed = value.substr(1)
+            while (cmds.length >= 0) {
+                if (bracketed[bracketed.length - 1] == "]" && (bracketed.match(/\[/g) || []).length + 1 == (bracketed.match(/\]/g) || []).length) {
+                    bracketed = bracketed.substr(0, bracketed.length - 1)
+                    break
+                }
+                if (cmds.length == 0) {break}
+                bracketed += " " + cmds.shift()
+            }
+            if ((bracketed.match(/\[/g) || []).length != (bracketed.match(/\]/g) || []).length) {
+                return ["ERROR", "INVALID SQUARE BRACKETS"]
+            }
+            bracketed = bracketed.substr(0, bracketed.length - 1).split(" ")
+            var n0 = parse_arg(bracketed, "INT", variables)
+            if (n0[0] == "ERROR") { return n0 }
+            var n1 = parse_arg(bracketed, "INT", variables)
+            if (n1[0] == "ERROR") { return n1 }
+            var n2 = parse_arg(bracketed, "INT", variables)
+            if (n2[0] == "ERROR") { return n2 }
+            if (bracketed.length > 0) { return ["ERROR", "TOO MANY NUMBERS"] }
+            col = [n0[1], n1[1], n2[1]]
+        } else {
+            cmds.unshift(value)
+            var col_n = parse_arg(cmds, "INT", variables)
+            if (col_n[0] == "ERROR") { return col_n }
+            col_n = col_n[1]
+            if (col_n >= 0 && col_n < builtin.length && col_n == Math.floor(col_n)) {
+                col = builtin[col_n]
+            } else { return ["ERROR", "INVALID COLOR `" + col_n + "`"] }
+        }
+        if (col[0] < 0 || col[0] > 255 || col[1] < 0 || col[1] > 255 || col[2] < 0 || col[2] > 255) {
+            return ["ERROR", "RGB VALUES MUST BE BETWEEN 0 and 255"]
+        }
+        return ["COLOR", "#" + to_hex(col[0]) + to_hex(col[1]) + to_hex(col[2])]
     } else if (format == ":") {
         value = value.toLowerCase()
         if(!value.match(/^:[a-z_][a-z0-9_]*$/)) {
@@ -562,6 +562,12 @@ function run_command() {
                     gameoptions["bg"] = c[1]
                 } else if (c[0] == "setpc") {
                     gameoptions["pc"] = c[1]
+                } else if (c[0] == "setpensize") {
+                    if (c[1] < 0 || c[1] > 255) {
+                        infobox.innerHTML += "\n  PENSIZE MUST BE BETWEEN 0 AND 255"
+                    } else {
+                        gameoptions["pensize"] = 0.2 + c[1] / 20
+                    }
                 } else if (c[0] == "towards") {
                     if (c[1] >= 0 && c[1] <= WIDTH && c[2] >= 0 && c[2] <= HEIGHT) {
                         turtle["rotation"] = Math.atan2(c[2] - turtle["y"], c[1] - turtle["x"])
@@ -699,7 +705,7 @@ function make_line(start, end) {
         make_line(start, [x, HEIGHT])
         make_line([x, 0], [end[0], end[1] - HEIGHT])
     } else {
-        drawnlines.push([start[0], start[1], end[0], end[1], 500, gameoptions["pc"]])
+        drawnlines.push([start[0], start[1], end[0], end[1], 500, gameoptions["pc"], gameoptions["pensize"]])
     }
 }
 
@@ -724,7 +730,7 @@ function draw_game() {
         var line = drawnlines[i]
         ctx.globalAlpha = Math.min(1, drawnlines[i][4] / 50)
         ctx.strokeStyle = drawnlines[i][5]
-        ctx.lineWidth = 2
+        ctx.lineWidth = drawnlines[i][6]
         ctx.beginPath()
         ctx.moveTo(line[0], line[1])
         ctx.lineTo(line[2], line[3])
