@@ -17,7 +17,7 @@ var HEIGHT = 450
 
 // game data
 var turtle = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
-var gameoptions = {"bg": "#000000"}
+var gameoptions = {"bg": "#000000", "pc": "#FFFFFF"}
 var drawnlines = []
 var asterN = 2
 var asteroids = []
@@ -32,8 +32,8 @@ var history_overwritten = {}
 var custom_commands = {}
 var global_variables = {}
 
-var builtindesc = "0=BLACK,1=BLUE,2=GREEN,3=CYAN,4=RED,5=MAGENTA,6=YELLOW"
-var builtin = [[0, 0, 0], [0, 0, 255], [0, 255, 0], [0, 255, 255], [255, 0, 0], [255, 0, 255], [255, 255, 0]]
+var builtindesc = "0=BLACK,1=BLUE,2=GREEN,3=CYAN,4=RED,5=MAGENTA,6=YELLOW,7=WHITE"
+var builtin = [[0, 0, 0], [0, 0, 255], [0, 255, 0], [0, 255, 255], [255, 0, 0], [255, 0, 255], [255, 255, 0], [255, 255, 255]]
 
 var commands = [
     // FORMAT: [ [command(s)], "description", [example(s)], [arg(s)]]
@@ -64,6 +64,7 @@ var commands = [
     [["reset", "cleargraphics", "cg"], "erase all the lines are move back to the centre", [], [], false],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"], false],
     [["setbg", "setbackground"], "set the background color to a built-in color (" + builtindesc + ") OR AN RGB COLOR", ["setbg 3", "setbg [255 163 0]"], ["COLOR"], false],
+    [["setpc", "setpencolor"], "set the pen color to a built-in color (" + builtindesc + ") OR AN RGB COLOR", ["setbg 3", "setbg [255 163 0]"], ["COLOR"], false],
     [["seth", "setheading"], "set the turtle's heading (angle with horizontal)", [], ["NUMBER"], false],
     [["setx"], "set the turtle's x position", [], ["NUMBER"], false],
     [["setxy"], "set the turtle's x and y positions", [], ["NUMBER", "NUMBER"], false],
@@ -136,7 +137,7 @@ function parse_arg(cmds, format, variables) {
             if (bracketed.length > 0) { return ["ERROR", "TOO MANY NUMBERS"] }
             col = [n0[1], n1[1], n2[1]]
         } else {
-            cmds = [value].concat(cmds)
+            cmds.unshift(value)
             var col_n = parse_arg(cmds, "INT", variables)
             if (col_n[0] == "ERROR") { return col_n }
             col_n = col_n[1]
@@ -559,6 +560,8 @@ function run_command() {
                     }
                 } else if (c[0] == "setbg") {
                     gameoptions["bg"] = c[1]
+                } else if (c[0] == "setpc") {
+                    gameoptions["pc"] = c[1]
                 } else if (c[0] == "towards") {
                     if (c[1] >= 0 && c[1] <= WIDTH && c[2] >= 0 && c[2] <= HEIGHT) {
                         turtle["rotation"] = Math.atan2(c[2] - turtle["y"], c[1] - turtle["x"])
@@ -696,7 +699,7 @@ function make_line(start, end) {
         make_line(start, [x, HEIGHT])
         make_line([x, 0], [end[0], end[1] - HEIGHT])
     } else {
-        drawnlines.push([start[0], start[1], end[0], end[1], 500])
+        drawnlines.push([start[0], start[1], end[0], end[1], 500, gameoptions["pc"]])
     }
 }
 
@@ -719,8 +722,8 @@ function draw_game() {
 
     for (var i = 0; i < drawnlines.length; i++) {
         var line = drawnlines[i]
-        var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (drawnlines[i][4] / 50)))]
-        ctx.strokeStyle = "#" + c + c + c + c + c + c
+        ctx.globalAlpha = Math.min(1, drawnlines[i][4] / 50)
+        ctx.strokeStyle = drawnlines[i][5]
         ctx.lineWidth = 2
         ctx.beginPath()
         ctx.moveTo(line[0], line[1])
@@ -728,6 +731,7 @@ function draw_game() {
         ctx.stroke()
     }
 
+    ctx.globalAlpha = 1
     ctx.strokeStyle = "#FFFFFF"
     ctx.lineWidth = 2
     ctx.beginPath()
@@ -759,22 +763,23 @@ function draw_game() {
 
     for (var i = 0; i < fires.length; i++) {
         var f = fires[i]
-        var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (f["age"] / 15)))]
+        ctx.strokeStyle = "#FFFFFF"
+        ctx.globalAlpha = Math.min(1, f["age"] / 15)
         ctx.beginPath()
-        ctx.strokeStyle = "#" + c + c + c + c + c + c
         add_lines(ctx, [[f["x"], f["y"]], [f["x"]+10*Math.cos(f["rotation"]), f["y"]+10*Math.sin(f["rotation"])]])
         ctx.stroke()
     }
 
     for (var i = 0; i < explosions.length; i++) {
         var e = explosions[i]
-        var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (e["age"] / 15)))]
+        ctx.strokeStyle = "#FFFFFF"
+        ctx.globalAlpha = Math.min(1, e["age"] / 15)
         ctx.beginPath()
-        ctx.strokeStyle = "#" + c + c + c + c + c + c
         add_lines(ctx, [[e["x"], e["y"]], [e["x"]+5/e["speed"]*Math.cos(e["rotation"]), e["y"]+5/e["speed"]*Math.sin(e["rotation"])]])
         ctx.stroke()
     }
 
+    ctx.globalAlpha = 1
     ctx.font = "15px monospace"
     ctx.fillStyle = "#FFFFFF"
     ctx.textAlign = "right"
