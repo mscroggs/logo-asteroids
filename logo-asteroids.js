@@ -17,6 +17,7 @@ var HEIGHT = 450
 
 // game data
 var turtle = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
+var gameoptions = {"bg": "#000000"}
 var drawnlines = []
 var asterN = 2
 var asteroids = []
@@ -30,6 +31,9 @@ var history_n = 0
 var history_overwritten = {}
 var custom_commands = {}
 var global_variables = {}
+
+var builtindesc = "0=BLACK,1=BLUE,2=GREEN,3=CYAN,4=RED,5=MAGENTA,6=YELLOW"
+var builtin = [[0, 0, 0], [0, 0, 255], [0, 255, 0], [0, 255, 255], [255, 0, 0], [255, 0, 255], [255, 255, 0]]
 
 var commands = [
     // FORMAT: [ [command(s)], "description", [example(s)], [arg(s)]]
@@ -59,6 +63,7 @@ var commands = [
     [["repeat"], "repeat a set of commands", ["repeat 4 [fd 100 rt 90]"], ["INT", "[]"], false],
     [["reset", "cleargraphics", "cg"], "erase all the lines are move back to the centre", [], [], false],
     [["rt", "right"], "turn right", ["rt 90"], ["NUMBER"], false],
+    [["setbg", "setbackground"], "set the background color to a built-in color (" + builtindesc + ") OR AN RGB COLOR", ["setbg 3", "setbg [255 163 0]"], ["COLOR"], false],
     [["seth", "setheading"], "set the turtle's heading (angle with horizontal)", [], ["NUMBER"], false],
     [["setx"], "set the turtle's x position", [], ["NUMBER"], false],
     [["setxy"], "set the turtle's x and y positions", [], ["NUMBER", "NUMBER"], false],
@@ -89,6 +94,9 @@ var commands = [
 ]
 
 function parse_arg(cmds, format, variables) {
+    if (cmds.length == 0) {
+        return ["ERROR", "NUMBER IS MISSING"]
+    }
     var value = cmds.shift()
     if (format == "QUOTE OR NUMBER") {
         if (value[0] == "\"") {
@@ -102,6 +110,44 @@ function parse_arg(cmds, format, variables) {
         } else {
             format = "NUMBER"
         }
+    }
+    if (format == "COLOR") {
+        var col = [0, 0, 0]
+        if (value[0] == "[") {
+            var bracketed = value.substr(1)
+            while (cmds.length >= 0) {
+                if (bracketed[bracketed.length - 1] == "]" && (bracketed.match(/\[/g) || []).length + 1 == (bracketed.match(/\]/g) || []).length) {
+                    bracketed = bracketed.substr(0, bracketed.length - 1)
+                    break
+                }
+                if (cmds.length == 0) {break}
+                bracketed += " " + cmds.shift()
+            }
+            if ((bracketed.match(/\[/g) || []).length != (bracketed.match(/\]/g) || []).length) {
+                return ["ERROR", "INVALID SQUARE BRACKETS"]
+            }
+            bracketed = bracketed.substr(0, bracketed.length - 1).split(" ")
+            var n0 = parse_arg(bracketed, "INT", variables)
+            if (n0[0] == "ERROR") { return n0 }
+            var n1 = parse_arg(bracketed, "INT", variables)
+            if (n1[0] == "ERROR") { return n1 }
+            var n2 = parse_arg(bracketed, "INT", variables)
+            if (n2[0] == "ERROR") { return n2 }
+            if (bracketed.length > 0) { return ["ERROR", "TOO MANY NUMBERS"] }
+            col = [n0[1], n1[1], n2[1]]
+        } else {
+            cmds = [value].concat(cmds)
+            var col_n = parse_arg(cmds, "INT", variables)
+            if (col_n[0] == "ERROR") { return col_n }
+            col_n = col_n[1]
+            if (col_n >= 0 && col_n < builtin.length && col_n == Math.floor(col_n)) {
+                col = builtin[col_n]
+            } else { return ["ERROR", "INVALID COLOR `" + col_n + "`"] }
+        }
+        if (col[0] < 0 || col[0] > 255 || col[1] < 0 || col[1] > 255 || col[2] < 0 || col[2] > 255) {
+            return ["ERROR", "RGB VALUES MUST BE BETWEEN 0 and 255"]
+        }
+        return ["COLOR", "#" + to_hex(col[0]) + to_hex(col[1]) + to_hex(col[2])]
     }
     if (format == "NUMBER" || format == "INT") {
         var out = ["ERROR", "ERROR PARSING NUMBER"]
@@ -398,6 +444,11 @@ function expand_commands(cmds, depth, variables) {
     return out.concat(expand_commands(cmds, depth, variables))
 }
 
+function to_hex(n) {
+    var digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"]
+    return digits[Math.floor(n / 16)] + digits[n % 16]
+}
+
 function run_command() {
     var infobox = document.getElementById("infobox")
     var inputbox = document.getElementById("inputbox")
@@ -506,6 +557,8 @@ function run_command() {
                     } else {
                         infobox.innerHTML += "\n  HEADING MUST BE SET TO A VALUE BETWEEN 0 AND 360"
                     }
+                } else if (c[0] == "setbg") {
+                    gameoptions["bg"] = c[1]
                 } else if (c[0] == "towards") {
                     if (c[1] >= 0 && c[1] <= WIDTH && c[2] >= 0 && c[2] <= HEIGHT) {
                         turtle["rotation"] = Math.atan2(c[2] - turtle["y"], c[1] - turtle["x"])
@@ -659,24 +712,24 @@ function add_lines(ctx, points) {
 }
 
 function draw_game() {
-    var canvas = document.getElementById("asteroids");
-    var ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0,0,WIDTH,HEIGHT);
+    var canvas = document.getElementById("asteroids")
+    var ctx = canvas.getContext("2d")
+    ctx.fillStyle = gameoptions["bg"]
+    ctx.fillRect(0,0,WIDTH,HEIGHT)
 
     for (var i = 0; i < drawnlines.length; i++) {
         var line = drawnlines[i]
         var c = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"][Math.min(14, Math.floor(15 * (drawnlines[i][4] / 50)))]
         ctx.strokeStyle = "#" + c + c + c + c + c + c
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2
         ctx.beginPath()
         ctx.moveTo(line[0], line[1])
         ctx.lineTo(line[2], line[3])
-        ctx.stroke();
+        ctx.stroke()
     }
 
     ctx.strokeStyle = "#FFFFFF"
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2
     ctx.beginPath()
     if (lives > 0 && turtle["st"]) {
         add_lines(ctx, [
@@ -702,7 +755,7 @@ function draw_game() {
         add_lines(ctx, pts)
     }
 
-    ctx.stroke();
+    ctx.stroke()
 
     for (var i = 0; i < fires.length; i++) {
         var f = fires[i]
@@ -710,7 +763,7 @@ function draw_game() {
         ctx.beginPath()
         ctx.strokeStyle = "#" + c + c + c + c + c + c
         add_lines(ctx, [[f["x"], f["y"]], [f["x"]+10*Math.cos(f["rotation"]), f["y"]+10*Math.sin(f["rotation"])]])
-        ctx.stroke();
+        ctx.stroke()
     }
 
     for (var i = 0; i < explosions.length; i++) {
@@ -719,7 +772,7 @@ function draw_game() {
         ctx.beginPath()
         ctx.strokeStyle = "#" + c + c + c + c + c + c
         add_lines(ctx, [[e["x"], e["y"]], [e["x"]+5/e["speed"]*Math.cos(e["rotation"]), e["y"]+5/e["speed"]*Math.sin(e["rotation"])]])
-        ctx.stroke();
+        ctx.stroke()
     }
 
     ctx.font = "15px monospace"
@@ -741,7 +794,7 @@ function start_game() {
     reset()
     tick()
     clearInterval(interval)
-    interval = setInterval(tick,1000/60);
+    interval = setInterval(tick,1000/60)
 }
 
 function gameover() {
@@ -749,10 +802,10 @@ function gameover() {
 }
 function show_gameover() {
     end_game()
-    var canvas = document.getElementById("asteroids");
-    var ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(200,200,WIDTH-400,HEIGHT-350);
+    var canvas = document.getElementById("asteroids")
+    var ctx = canvas.getContext("2d")
+    ctx.fillStyle = "#000000"
+    ctx.fillRect(200,200,WIDTH-400,HEIGHT-350)
 
     ctx.font = "25px monospace"
     ctx.fillStyle = "#FFFFFF"
@@ -842,7 +895,7 @@ function check_collisions() {
             for (var j = 0; j < ship_points.length; j++) {
                 var s = ship_points[j]
                 if (Math.pow(s[0]-a["x"], 2) + Math.pow(s[1]-a["y"], 2) < Math.pow(radius(a["sides"]), 2)) {
-                    lives--;
+                    lives--
                     for (var k = 0; k < 20; k++) {
                         explosions.push({"x": turtle["x"], "y": turtle["y"], "rotation": Math.random()*Math.PI*2, "speed": 0.5 + 2 * Math.random(), "age": 50})
                     }
@@ -1074,10 +1127,10 @@ function hide_logohelp() {
 
 function show_titlescreen() {
     document.getElementById("infobox").innerHTML = "Logo Asteroids. Created by Matthew Scroggs (mscroggs.co.uk)"
-    var canvas = document.getElementById("asteroids");
-    var ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0,0,WIDTH,HEIGHT);
+    var canvas = document.getElementById("asteroids")
+    var ctx = canvas.getContext("2d")
+    ctx.fillStyle = "#000000"
+    ctx.fillRect(0,0,WIDTH,HEIGHT)
 
     ctx.font = "35px monospace"
     ctx.fillStyle = "#FFFFFF"
@@ -1087,7 +1140,7 @@ function show_titlescreen() {
     ctx.fillText("RUN COMMAND `start` TO BEGIN", WIDTH/2, 130)
 
     ctx.strokeStyle = "#FFFFFF"
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2
     ctx.beginPath()
     var x = 575
     var y = 350
@@ -1104,7 +1157,7 @@ function show_titlescreen() {
     ctx.moveTo(x + scale * 55 * Math.cos(rot), y + scale * 55 * Math.sin(rot))
     ctx.lineTo(x + scale * 65 * Math.cos(rot), y + scale * 65 * Math.sin(rot))
 
-    ctx.stroke();
+    ctx.stroke()
 
     ctx.beginPath()
 
@@ -1119,15 +1172,15 @@ function show_titlescreen() {
     for (var i = 1; i <= 360; i++) {
         rotated_lineTo(ctx, x, y, scale * 18 + scale * 6 * Math.cos(i*Math.PI/180), scale * 4 * Math.sin(i*Math.PI/180), rot)
     }
-    ctx.stroke();
+    ctx.stroke()
 
     ctx.moveTo(x, y)
     for (var i = 1; i <= 360; i++) {
         var a = i * Math.PI/180
         rotated_lineTo(ctx, x, y, scale * 17 * Math.pow(Math.sin(2*a), 2) * Math.cos(a), scale * 17 * Math.pow(Math.sin(2*a), 2) * Math.sin(a), rot)
     }
-    ctx.fill();
-    ctx.stroke();
+    ctx.fill()
+    ctx.stroke()
 
     ctx.beginPath()
     ctx.fillStyle="#A4442D"
@@ -1135,8 +1188,8 @@ function show_titlescreen() {
     for (var i = 1; i <= 360; i++) {
         rotated_lineTo(ctx, x, y, scale * 15 * Math.cos(i*Math.PI/180), scale * 10 * Math.sin(i*Math.PI/180), rot)
     }
-    ctx.fill();
-    ctx.stroke();
+    ctx.fill()
+    ctx.stroke()
 
     ctx.beginPath()
     rotated_moveTo(ctx, x, y, scale * 7, 0, rot)
@@ -1173,7 +1226,7 @@ function show_titlescreen() {
     rotated_lineTo(ctx, x, y, scale * 7.71, -scale * 0.71, rot)
     rotated_lineTo(ctx, x, y, scale * 3.71, -scale * 4.71, rot)
     rotated_lineTo(ctx, x, y, scale * 5.75, -scale * 8.79, rot)
-    ctx.stroke();
+    ctx.stroke()
 }
 
 function rotated_lineTo(ctx, cx, cy, dx, dy, rot) {
