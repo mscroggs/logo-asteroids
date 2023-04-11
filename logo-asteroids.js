@@ -29,6 +29,7 @@ var cmd_history = []
 var history_n = 0
 var history_overwritten = {}
 var custom_commands = {}
+var global_variables = {}
 
 var commands = [
     // FORMAT: [ [command(s)], "description", [example(s)], [arg(s)]]
@@ -45,6 +46,7 @@ var commands = [
     [["home"], "move the turtle back to the centre", [], [], false],
     [["ht", "hideturtle"], "hide the turtle", [], [], false],
     [["lt", "left"], "turn left", ["lt 60"], ["NUMBER"], false],
+    [["make"], "set a variable", ["make :a 10"], [":", "NUMBER"], false],
     [["pd", "pendown"], "put the pen down: after this is done, lines will be drawn", [], [], false],
     [["pos", "position"], "the turtle's current position", ["print pos"], [], true],
     [["posx", "positionx"], "the turtle's current x-position", ["print posx"], [], true],
@@ -90,7 +92,7 @@ function parse_arg(cmds, format, variables) {
     var value = cmds.shift()
     if (format == "QUOTE OR NUMBER") {
         if (value[0] == "\"") {
-            value = value.substr(1, value.length - 1)
+            value = value.substr(1)
             while (cmds.length > 0) {
                 value += " " + cmds.shift()
             }
@@ -224,7 +226,7 @@ function parse_arg(cmds, format, variables) {
                 return ["ERROR", "`repcount` MUST BE USED INSIDE A REPEAT LOOP"]
             }
         } else if (value[0] == ":") {
-            var v = value[0].substr(1)
+            var v = value.substr(1)
             if (v in variables) {
                 out = [format, variables[v]]
             } else {
@@ -267,8 +269,14 @@ function parse_arg(cmds, format, variables) {
     }
     if (format == "STRING") {
         value = value.toLowerCase()
-        if(!value.match(/^[a-z0-9_]+$/)) {
-            return ["ERROR", "COULD NOT PARSE INTEGER `" + value + "`"]
+        if(!value.match(/^[a-z_][a-z0-9_]*$/)) {
+            return ["ERROR", "`" + value + "` IS AN INVALID NAME"]
+        }
+        return [format, value]
+    } else if (format == ":") {
+        value = value.toLowerCase()
+        if(!value.match(/^:[a-z_][a-z0-9_]*$/)) {
+            return ["ERROR", "`" + value + "` IS AN INVALID NAME"]
         }
         return [format, value]
     } else if (format == "[]") {
@@ -291,6 +299,9 @@ function parse_arg(cmds, format, variables) {
     } else if (format == "?: ... END") {
         inputs = []
         while (value[0] == ":") {
+            if(!value.match(/^:[a-z_][a-z0-9_]*$/)) {
+                return ["ERROR", "`" + value + "` IS AN INVALID NAME"]
+            }
             inputs.push(value.substr(1))
             value = cmds.shift()
         }
@@ -349,6 +360,9 @@ function expand_commands(cmds, depth, variables) {
     var out = []
     if (c[0] == "repeat") {
         var new_variables = {}
+        for (var v in global_variables) {
+            new_variables[v] = global_variables[v]
+        }
         for (var v in variables) {
             new_variables[v] = variables[v]
         }
@@ -359,6 +373,9 @@ function expand_commands(cmds, depth, variables) {
         }
     } else if (c[0] in custom_commands) {
         var new_variables = {}
+        for (var v in global_variables) {
+            new_variables[v] = global_variables[v]
+        }
         for (var v in variables) {
             new_variables[v] = variables[v]
         }
@@ -412,7 +429,7 @@ function run_command() {
     var distance = 0
     var firecount = 0
 
-    var cmds = expand_commands(command.toLowerCase().split(" "), 0, {})
+    var cmds = expand_commands(command.toLowerCase().split(" "), 0, global_variables)
 
     for (var i = 0; i < cmds.length; i++) {
         var c = cmds[i]
@@ -559,6 +576,8 @@ function run_command() {
                     } else {
                         infobox.innerHTML += "\n  CANNOT ERASE `" + c[1] + "` (DOES NOT EXIST)"
                     }
+                } else if (c[0] == "make") {
+                    global_variables[c[1].substr(1)] = c[2]
                 } else if (c[0] == "erall") {
                     custom_commands = {}
                 } else if (c[0] == "help") {
