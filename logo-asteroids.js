@@ -14,6 +14,7 @@
 // constants
 var WIDTH = 800
 var HEIGHT = 450
+var VERSION = "1.0"
 
 // game data
 var turtle = {"x": WIDTH/2, "y": HEIGHT/2, "rotation": 0, "pd": true, "st": true}
@@ -1149,6 +1150,8 @@ function show_titlescreen() {
     ctx.fillText("LOGO ASTEROIDS", WIDTH/2, 100)
     ctx.font = "15px monospace"
     ctx.fillText("RUN COMMAND `start` TO BEGIN", WIDTH/2, 130)
+    ctx.textAlign = "right"
+    ctx.fillText("VERSION " + VERSION, WIDTH-10, HEIGHT-10)
 
     ctx.strokeStyle = "#FFFFFF"
     ctx.lineWidth = 2
