@@ -33,7 +33,7 @@ var history_overwritten = {}
 var custom_commands = {}
 var global_variables = {}
 
-var builtindesc = "0=BLACK,1=BLUE,2=GREEN,3=CYAN,4=RED,5=MAGENTA,6=YELLOW,7=WHITE"
+var builtindesc = "0=BLACK, 1=BLUE, 2=GREEN, 3=CYAN, 4=RED, 5=MAGENTA, 6=YELLOW, 7=WHITE"
 var builtin = [[0, 0, 0], [0, 0, 255], [0, 255, 0], [0, 255, 255], [255, 0, 0], [255, 0, 255], [255, 255, 0], [255, 255, 255]]
 
 var commands = [
